@@ -1,0 +1,26 @@
+#pragma once
+#include "main.h"
+
+class Texture;
+class GLWindow;
+class SDL_Renderer;
+class SDL_Texture;
+class SDL_Surface;
+class _TTF_Font;
+
+class Render {
+ public:
+ 	Render(const GLWindow& window);
+ 	SDL_Renderer* GetRender() const;
+ 	_TTF_Font* GetFont() const;
+  void DrawText(const char* text_str,
+  	            const Point2D<size_t>& dest_coord,
+  	            const Color& color = {});
+	void SetBackgroundColor(const Color& color);
+	SDL_Texture* CreateTextureFromSurface(SDL_Surface* surface);
+  ~Render();
+
+ private:
+ 	SDL_Renderer* render_ = nullptr;
+	_TTF_Font* font_ = nullptr;
+};
