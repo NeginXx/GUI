@@ -3,8 +3,6 @@ DEFINE_SKIN(Scalable, ButtonCloseHover,  "button_close_hover.png");
 DEFINE_SKIN(Scalable, ButtonHide,        "button_hide.png");
 DEFINE_SKIN(Scalable, IconFolder,        "icon_folder.png");
 DEFINE_SKIN(Scalable, IconWarning,       "icon_warning.png");
-DEFINE_SKIN(Scalable, ToolEraser,        "tool_eraser.png");
-DEFINE_SKIN(Scalable, ToolPencil,        "tool_pencil.png");
 DEFINE_SKIN(Tiling,   TexMainLightExtra, "tex_main_light_extra.png");
 DEFINE_SKIN(Tiling,   TexMainLight,      "tex_main_light.png");
 DEFINE_SKIN(Tiling,   TexMain,           "tex_main.png");

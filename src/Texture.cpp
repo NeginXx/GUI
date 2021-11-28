@@ -183,6 +183,14 @@ void Texture::DrawCircle(Point2D<int> center, uint radius,
   }
 }
 
+void Texture::DrawRect(const Rectangle& position,
+                       const Color& color) {
+	SDL_SetRenderTarget(render_->render_, texture_);
+  SDL_SetRenderDrawColor(render_->render_, color.red, color.green, color.blue, color.alpha);
+	SDL_Rect dst = {position.corner.x, position.corner.y, (int)position.width, (int)position.height};
+	SDL_RenderFillRect(render_->render_, &dst);
+}
+
 void Texture::DrawPoint(const Point2D<int>& coord,
                         const Color& color) {
 	SDL_SetRenderTarget(render_->render_, texture_);
@@ -206,7 +214,6 @@ void Texture::DrawText(const char* text_str,
 
 void Texture::SetBackgroundColor(const Color& color) {
 	SDL_SetRenderTarget(render_->render_, texture_);
-  SDL_SetRenderDrawBlendMode(render_->render_, SDL_BLENDMODE_NONE);
   SDL_SetRenderDrawColor(render_->render_, color.red, color.green, color.blue, color.alpha);
   SDL_RenderFillRect(render_->render_, nullptr);
 }

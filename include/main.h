@@ -17,6 +17,9 @@ struct Color {
 	unsigned char alpha = 255;
 };
 
+Color GetColor(uint color);
+uint GetColor(Color color);
+
 const Color kLightPurple = {171, 60, 255};
 const Color kLightGreen  = {107, 216, 79};
 const Color kLightPink   = {255, 153, 204};

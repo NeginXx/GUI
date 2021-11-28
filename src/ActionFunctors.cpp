@@ -147,12 +147,12 @@ namespace Functor {
   	auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window_, render_);
   }
 
- 	SetTool::SetTool(Tool::Type tool)
+ 	SetTool::SetTool(Plugin::ITool* tool)
  	: tool_(tool) {}
 
   void SetTool::Action() {
-  	Tool::Manager& manager = Tool::Manager::GetInstance();
-  	manager.SetCurTool(tool_);
+  	static Tool::Manager& manager = Tool::Manager::GetInstance();
+  	manager.SetCurrentTool(tool_);
   }
   
  	PickColor::PickColor(const Color& color)
@@ -160,7 +160,6 @@ namespace Functor {
 
   void PickColor::Action() {
   	Tool::Manager& manager = Tool::Manager::GetInstance();
-  	Tool::Pencil& pencil = manager.GetPencil();
-  	pencil.color = color_;
+  	manager.SetColor(color_);
   }
 }

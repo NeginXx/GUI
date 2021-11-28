@@ -2,6 +2,7 @@
 #include "main.h"
 #include "Render.h"
 #include "Texture.h"
+#include "PluginTexture.h"
 #include "Tools.h"
 
 namespace Widget {
@@ -138,12 +139,12 @@ namespace Functor {
 	class SetTool : public Abstract {
 	 public:
 	 	SetTool() = delete;
-	 	SetTool(Tool::Type tool);
+	 	SetTool(Plugin::ITool* tool);
 
 	  void Action() override;
 
 	 private:
-	 	Tool::Type tool_;
+	 	Plugin::ITool* tool_;
 	};
 
 	class PickColor : public Abstract {

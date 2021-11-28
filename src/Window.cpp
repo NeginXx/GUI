@@ -48,51 +48,41 @@ namespace Listener {
   }
 
   Canvas::Canvas(Widget::Canvas* canvas,
-                 Point2D<uint> coord,
-                 Texture* painting_area)
+                 PluginTexture* painting_area,
+                 Point2D<uint> coord)
   : canvas_(canvas),
-    prev_point_(coord),
-    painting_area_(painting_area) {}
+    painting_area_(painting_area),
+    manager_(Tool::Manager::GetInstance()),
+    is_in_action_(true) {
+      manager_.ActionBegin(painting_area_, Point2D<int>(coord) - canvas_->GetPosition().corner);
+    }
 
   void Canvas::ProcessSystemEvent(const SystemEvent& event) {
     switch (event.type) {
       case SystemEvent::kMouseButtonUp: {
+        manager_.ActionEnd(painting_area_, Point2D<int>(event.info.mouse_click.coordinate));
         canvas_->FinishPainting();
         break;
       }
 
       case SystemEvent::kMouseMotion: {
-        Point2D<uint> new_mp = event.info.mouse_motion.new_mouse_pos;
-        if (!canvas_->IsMouseCoordinatesInBound(new_mp)) {
-          // canvas_->FinishPainting();
+        Point2D<int> old_mp = Point2D<int>(event.info.mouse_motion.old_mouse_pos);
+        Point2D<int> new_mp = Point2D<int>(event.info.mouse_motion.new_mouse_pos);
+        if (!canvas_->IsMouseCoordinatesInBound(Point2D<uint>(new_mp))) {
+          if (is_in_action_) {
+            manager_.ActionEnd(painting_area_, old_mp);
+            is_in_action_ = false;
+          }
           break;
         }
 
-        Point2D<int> canvas_pos = canvas_->GetPosition().corner;
-        assert((int)(new_mp.x) >= canvas_pos.x);
-        assert((int)(new_mp.y) >= canvas_pos.y);
-        Point2D<uint> cur_point_ = { new_mp.x - canvas_pos.x,
-                                     new_mp.y - canvas_pos.y };
-
-        Tool::Manager& manager = Tool::Manager::GetInstance();
-        Tool::Type tool_type = manager.GetCurTool();
-        switch (tool_type) {
-          case Tool::kPencil: {
-            Tool::Pencil& pencil = manager.GetPencil();
-            painting_area_->DrawThickLine(Point2D<int>(prev_point_), Point2D<int>(cur_point_), pencil.thickness, pencil.color);
-            break;
-          }
-
-          case Tool::kEraser: {
-            Tool::Eraser& eraser = manager.GetEraser();
-            painting_area_->DrawThickLine(Point2D<int>(prev_point_), Point2D<int>(cur_point_), eraser.thickness, {0, 0, 0, 0});
-            break;
-          }
-
-          default: assert(0);
+        if (!is_in_action_) {
+          manager_.ActionBegin(painting_area_, new_mp);
+          is_in_action_ = true;
         }
 
-        prev_point_ = cur_point_;
+        const Point2D<int>& canvas_pos = canvas_->GetPosition().corner;
+        manager_.Action(painting_area_, old_mp - canvas_pos, new_mp - old_mp);
         break;
       }
 
@@ -525,17 +515,21 @@ namespace Widget {
   }
 
   void Button::StopListeningMouseUp() {
-    SetDrawFunc(draw_funcs_.draw_func_main);
     main_window_->DeleteListener(SystemEvent::kMouseButtonUp, click_listener_);
     delete click_listener_;
     click_listener_ = nullptr;
+    if (draw_func_ == draw_funcs_.draw_func_click) {
+      SetDrawFunc(draw_funcs_.draw_func_main);
+    }
   }
 
   void Button::StopListeningMouseMotion() {
-    SetDrawFunc(draw_funcs_.draw_func_main);
     main_window_->DeleteListener(SystemEvent::kMouseMotion, hover_listener_);
     delete hover_listener_;
     hover_listener_ = nullptr;
+    if (draw_func_ == draw_funcs_.draw_func_hover) {
+      SetDrawFunc(draw_funcs_.draw_func_main);
+    }
   }
 
   void Button::ProcessSystemEvent(const SystemEvent& event) {
@@ -549,7 +543,9 @@ namespace Widget {
 
       case SystemEvent::kMouseMotion: {
         if (hover_listener_ == nullptr) {
-          StartListeningMouseMotion();
+          if (click_listener_ == nullptr) {
+           StartListeningMouseMotion();
+          }
         } // else it's already processed by listener
         break;
       }
@@ -572,7 +568,7 @@ namespace Widget {
     main_window_(main_window),
     painting_listener_(nullptr)
     {
-      painting_area_ = new Texture(1900, 1100, render, {0, 0, 0, 0});
+      painting_area_ = new PluginTexture(1900, 1100, render, {0, 0, 0, 0});
     }
 
   Canvas::~Canvas() {
@@ -587,7 +583,7 @@ namespace Widget {
   void Canvas::StartPainting(Point2D<uint> coordinate) {
     assert((int)coordinate.x >= position_.corner.x);
     assert((int)coordinate.y >= position_.corner.y);
-    painting_listener_ = new Listener::Canvas(this,  Point2D<uint>(Point2D<int>(coordinate) - position_.corner), painting_area_);
+    painting_listener_ = new Listener::Canvas(this, painting_area_, coordinate);
     main_window_->AddListener(SystemEvent::kMouseMotion, painting_listener_);
     main_window_->AddListener(SystemEvent::kMouseButtonUp, painting_listener_);
   }
@@ -601,14 +597,15 @@ namespace Widget {
 
   void Canvas::ProcessSystemEvent(const SystemEvent& event) {
     switch (event.type) {
-      case SystemEvent::kMouseButtonDown:
+      case SystemEvent::kMouseButtonDown: {
         StartPainting(event.info.mouse_click.coordinate);
         break;
+      }
     }
   }
 
   void Canvas::Draw() {
-    painting_area_->DrawWithNoScale(&position_);
+    painting_area_->Draw(position_);
   }
 }
 
@@ -668,27 +665,30 @@ namespace UserWidget {
 
   void PaintWindow::CreatePalette(Widget::Container* palette, Render* render, uint palette_width,
                                   const Point2D<int>& coord, Widget::MainWindow* main_window) {
-    auto func_set_pencil = new Functor::SetTool(Tool::kPencil);
-    auto func_set_eraser = new Functor::SetTool(Tool::kEraser);
-    set_funcs_to_free_.push_back(func_set_pencil);
-    set_funcs_to_free_.push_back(func_set_eraser);
-
-    auto func_draw_pencil_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, kFuncDrawToolPencil});
-    auto func_draw_eraser_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, kFuncDrawToolEraser});
-    draw_funcs_to_free_.push_back(func_draw_pencil_hover);
-    draw_funcs_to_free_.push_back(func_draw_eraser_hover);
-
     const uint button_width = kStandardButtonWidth + 10;
     const uint ofs = (palette_width - 2 * button_width) / 2;
     int x = coord.x + ofs;
     int cur_y = coord.y + ofs;
-    auto pencil_button = new Widget::Button({{x, cur_y}, button_width, button_width},
-                                            main_window, func_set_pencil, {kFuncDrawToolPencil, func_draw_pencil_hover});
-    auto eraser_button = new Widget::Button({{x + (int)button_width, cur_y}, button_width, button_width},
-                                            main_window, func_set_eraser, {kFuncDrawToolEraser, func_draw_eraser_hover});
-    cur_y += button_width;
-    palette->AddChild(pencil_button);
-    palette->AddChild(eraser_button);
+
+    ::Tool::Manager& manager = ::Tool::Manager::GetInstance();
+    std::list<Plugin::ITool*> tools = manager.GetToolsList();
+    size_t i = 0;
+    for (auto tool : tools) {
+      auto texture = new Texture(tool->GetIconFileName(), render);
+      auto func_draw_texture = new DrawFunctor::ScalableTexture(texture);
+      auto func_draw_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, func_draw_texture});
+      auto func_set_tool = new Functor::SetTool(tool);
+      auto pick_tool_button = new Widget::Button({{x, cur_y}, button_width, button_width},
+                                                 main_window, func_set_tool, {func_draw_texture, func_draw_hover});
+      palette->AddChild(pick_tool_button);
+      if (i++ & 2) {
+        cur_y += button_width;
+      }
+      textures_to_free_.push_back(texture);
+      draw_funcs_to_free_.push_back(func_draw_texture);
+      draw_funcs_to_free_.push_back(func_draw_hover);
+      set_tool_funcs_to_free_.push_back(func_set_tool);
+    }
 
     for (size_t i = 0; i < 10; ++i) {
       palette->AddChild(CreateColorButton(render, button_width, {x, cur_y}, main_window));
@@ -708,7 +708,6 @@ namespace UserWidget {
     const uint palette_width = 100;
     auto canvas = new Widget::Canvas({{x + (int)palette_width, y + (int)kStandardTitlebarHeight}, pos.width - palette_width, pos.height - kStandardTitlebarHeight},
                                      main_window, render);
-
     auto palette = new Widget::Container({{x, (int)(y + kStandardTitlebarHeight)}, palette_width, pos.height - kStandardTitlebarHeight},
                                          {}, kFuncDrawTexStripedLight);
     CreatePalette(palette, render, palette_width, {x, y + (int)kStandardTitlebarHeight}, main_window);
@@ -717,10 +716,10 @@ namespace UserWidget {
   }
 
   PaintWindow::~PaintWindow() {
-    for (auto f : draw_funcs_to_free_) delete f;
-    for (auto f : set_funcs_to_free_) delete f;
-    for (auto f : pick_color_funcs_to_free_) delete f;
     for (auto t : textures_to_free_) delete t;
+    for (auto f : draw_funcs_to_free_) delete f;
+    for (auto f : pick_color_funcs_to_free_) delete f;
+    for (auto f : set_tool_funcs_to_free_) delete f;
   }
 
   HoleWindow::HoleWindow(const Rectangle& position,

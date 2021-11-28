@@ -23,6 +23,8 @@ class Texture {
                      const Color& color = {});
   void DrawCircle(Point2D<int> center, uint radius,
                   const Color& color = {});
+  void DrawRect(const Rectangle& position,
+                const Color& color = {});
   void DrawPoint(const Point2D<int>& coordinate,
                  const Color& color = {});
   void DrawText(const char* text_str,

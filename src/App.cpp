@@ -47,7 +47,7 @@ class MainBar : public Widget::Container {
   {
     func_open_file_ = new Functor::OpenCanvas(main_window, render);
     auto file_button =
-    new UserWidget::ButtonWithText({0, 0}, main_window, func_open_file_, {kFuncDrawTexMain, kFuncDrawTexMainDark},
+    new UserWidget::ButtonWithText({0, 0}, main_window, func_open_file_, {kFuncDrawTexMain, kFuncDrawTexMainDark, kFuncDrawTexMainDarkExtra},
                                    "File", render, kWhite);
     AddChild(file_button);
     main_window->AddChild(this);
@@ -73,7 +73,7 @@ void RunApp(GLWindow* gl_window, Render* render) {
   auto main_window = new Widget::MainWindow({{0, 0}, gl_window_width, gl_window_height}, {}, kFuncDrawTexMainLight);
   auto main_bar = new MainBar(main_window, render, gl_window_width);
   auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window, render);
-  auto hole_window = new UserWidget::HoleWindow({{-500, kStandardTitlebarHeight}, 510, 700}, main_window, render);
+  // auto hole_window = new UserWidget::HoleWindow({{-500, kStandardTitlebarHeight}, 510, 700}, main_window, render);
 
   // Rectangle pos = {{500, 500}, kStandardButtonWidth * 10, kStandardButtonWidth};
   // auto text = new Texture("Can", render, kBlack);
@@ -106,6 +106,7 @@ void RunApp(GLWindow* gl_window, Render* render) {
         }
 
         default: {
+          printf("!\n");
           main_window->ProcessSystemEvent(event);
           break;
         }

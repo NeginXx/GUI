@@ -1,55 +1,59 @@
+#pragma once
 #include "main.h"
+#include "../include/Plugin.h"
 
 namespace Tool {
-	enum Type {
-		kPencil,
-		kEraser
-	};
-
-	struct Pencil {
-	 	Color color = {};
-	 	uint thickness = 3;
-	};
-
-	struct Eraser {
-		uint thickness = 3;
-	};
-
 	class Manager {
 	 public:
-	  static Manager& GetInstance() {
-	  	static Manager instance;
-	    return instance;
-	  }
-
-	  Tool::Type GetCurTool() {
-	  	return cur_tool_;
-	  }
-
-	  void SetCurTool(Tool::Type cur_tool) {
-	  	cur_tool_ = cur_tool;
-	  }
-
-	  Pencil& GetPencil() {
-	  	return pencil_;
-	  }
-
-	  Eraser& GetEraser() {
-	  	return eraser_;
-	  }
-
-  	~Manager() = default;
+	  static Manager& GetInstance();
+	  void ActionBegin(Plugin::ITexture* canvas, Point2D<int> point);
+    void Action(Plugin::ITexture* canvas, Point2D<int> prev_point, Point2D<int> diff);
+    void ActionEnd(Plugin::ITexture* canvas, Point2D<int> point);
+	  uint GetThickness();
+	  uint GetColor();
+	  std::list<Plugin::ITool*>& GetToolsList();
+	  void SetColor(const Color& color);
+	  void SetCurrentTool(Plugin::ITool* tool);
+  	~Manager();
 
 	 private:
-	 	Tool::Type cur_tool_ = kPencil;
-	 	Pencil pencil_ = {};
-	 	Eraser eraser_ = {};
+	 	uint thickness_;
+	 	Color color_;
+	 	Plugin::ITool* cur_tool_;
+	 	std::list<Plugin::ITool*> tools_;
 
-	  Manager() = default;
-
+	  Manager();
 	  Manager(const Manager&) = delete;
 	  Manager& operator=(const Manager&) = delete;
 	  Manager(Manager&&) = delete;
 	  Manager& operator=(Manager&&) = delete;
+	};
+
+	class Pencil : public Plugin::ITool {
+	 public:
+	 	Pencil();
+
+	  void ActionBegin(Plugin::ITexture* canvas, int x, int y) override;
+	  void Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) override;
+	  void ActionEnd(Plugin::ITexture* canvas, int x, int y) override;
+	  const char* GetIconFileName() const override;
+	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
+
+	 private:
+	 	Manager& manager_;
+	};
+
+	class Eraser : public Plugin::ITool {
+	 public:
+	 	Eraser();
+
+	  void ActionBegin(Plugin::ITexture* canvas, int x, int y) override;
+	  void Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) override;
+	  void ActionEnd(Plugin::ITexture* canvas, int x, int y) override;
+	  const char* GetIconFileName() const override;
+	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
+
+	 private:
+	 	Manager& manager_;
 	};
 }

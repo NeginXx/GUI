@@ -56,16 +56,17 @@ namespace Listener {
    public:
     Canvas() = delete;
     Canvas(Widget::Canvas* canvas,
-           Point2D<uint> coord,
-           Texture* painting_area);
+           PluginTexture* painting_area,
+           Point2D<uint> coord);
     ~Canvas() override = default;
 
     void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
     Widget::Canvas* canvas_;
-    Point2D<uint> prev_point_;
-    Texture* painting_area_;
+    PluginTexture* painting_area_;
+    Tool::Manager& manager_;
+    bool is_in_action_;
   };
 }
 
@@ -214,7 +215,7 @@ namespace Widget {
 
    protected:
     Widget::MainWindow* main_window_;
-    Texture* painting_area_;
+    PluginTexture* painting_area_;
     Listener::Canvas* painting_listener_;
   };
 }
@@ -241,10 +242,13 @@ namespace UserWidget {
     ~PaintWindow() override;
 
    private:
-    std::vector<DrawFunctor::Abstract*> draw_funcs_to_free_;
-    std::vector<Functor::SetTool*> set_funcs_to_free_;
-    std::vector<Functor::PickColor*> pick_color_funcs_to_free_;
+    struct Tool {
+      Texture* texture;
+    };
     std::vector<Texture*> textures_to_free_;
+    std::vector<DrawFunctor::Abstract*> draw_funcs_to_free_;
+    std::vector<Functor::PickColor*> pick_color_funcs_to_free_;
+    std::vector<Functor::SetTool*> set_tool_funcs_to_free_;
 
     void CreatePalette(Widget::Container* palette, Render* render, uint palette_width,
                        const Point2D<int>& coord, Widget::MainWindow* main_window);
