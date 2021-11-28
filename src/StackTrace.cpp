@@ -1,135 +1,118 @@
-// signal(SIGSEGV, PrintStackInfoAndExit);
+#include <cassert>
+#include <cstdio>
+#include <stack>
+#include <cstdlib>
 #include "../include/StackTrace.h"
 
-struct CallStack {
-  struct FuncLine* ptr;
-  size_t sz;
-  size_t capacity;
-  size_t mincapacity;
-  size_t maxcapacity;
-  size_t incfac;
-} funcs_called = {NULL, 0, 100, 100, 1000, 2};
+const int kExitCode = 200;
 
-size_t CallStackExpand() {
-  if (funcs_called.ptr == NULL) {
-    return 1;
-  }
-  if (funcs_called.capacity * funcs_called.incfac > kCallStackMaxsize) {
-    printf("kCallStackMaxsize reached\n");
-    return 1;
-  }
-  funcs_called.ptr = (struct FuncLine*)realloc(funcs_called.ptr, funcs_called.capacity * funcs_called.incfac * sizeof(struct FuncLine));
-  if (funcs_called.ptr == NULL) {
-    printf ("No more memory for called functions stack\n");
-    return 1;
-  }
-  funcs_called.capacity *= funcs_called.incfac;
-  return 0;
-}
+void PrintStackInfoAndExit(int signum);
 
-size_t CallStackPushback(struct FuncLine func_line) {
-  if (funcs_called.ptr == NULL) {
-    return 0;
-  }
-  if (funcs_called.sz >= kCallStackMaxsize) {
-    fprintf(stderr, "call stack maxsize reached\n");
-    return 0;
-  }
-  if (funcs_called.sz == funcs_called.capacity) {
-    if (CallStackExpand() != 0) {
-      return 0;
+class StackTrace {
+ public:
+  StackTrace() = delete;
+
+  void PrintStackInfoAndExit(int signum) {
+    static bool is_called_first_time = true;
+    if (!is_called_first_time) {
+      _Exit(kExitCode);
     }
-  }
-  funcs_called.ptr[funcs_called.sz++] = func_line;
-  return 1;
-}
+    is_called_first_time = false;
 
-void FuncsCalledPush(struct FuncLine func_line) {
-  static int cnt = 0;
-  if (cnt == 0) {
-    funcs_called.ptr = (struct FuncLine*)calloc(funcs_called.capacity, sizeof(struct FuncLine));
-    if (funcs_called.ptr == NULL) {
-      printf ("Can not use stack trace, no more memory for stack\n");
+    switch(signum) {
+      case 6:
+        printf("caught abrt :^(, error = %d\n", signum);
+        break;
+      case 11:
+        printf("caught segv :^(, error = %d\n", signum);
+        break;
+      default:
+        printf("caught signal :^(, signum = %d\n", signum);
+        break;
     }
+
+    if (stack_.empty()) {
+      printf("0 registered functions on stack\n");
+      _Exit(kExitCode);
+    }
+
+    size_t sz = stack_.size();
+    if (sz == 1) {
+      printf("%lu registered function on stack\n", sz);
+    } else {
+      printf("%lu registered functions on stack\n", sz);
+    }
+    printf("first %lu of those:\n", sz < max_size_ ? sz : max_size_);
+    for (size_t i = 0; i < sz && i < max_size_; i++) {
+      Info info = stack_.top();
+      stack_.pop();
+      printf("%lu: line %lu, function name %s\n", i + 1, info.line, info.func_name);
+    }
+    printf("\n");
+
+    _Exit(kExitCode);
   }
-  CallStackPushback(func_line);
-  ++cnt;
+
+  StackTrace(std::initializer_list<int> signums, size_t max_size)
+  : segv_stack{}, max_size_(max_size)
+  {
+    segv_stack.ss_size = 4096;
+    segv_stack.ss_sp = valloc(segv_stack.ss_size);
+    sigaltstack(&segv_stack, NULL);
+  
+    struct sigaction action = {};
+    action.sa_handler = ::PrintStackInfoAndExit;
+    action.sa_flags = SA_ONSTACK;
+
+    for (auto signum : signums) {
+      sigaction(signum, &action, NULL);
+    }
+    max_size_ = max_size; 
+  }
+
+  ~StackTrace() {
+    free(segv_stack.ss_sp);
+  }
+
+  void Push(const Info& info) {
+    stack_.push(info);
+  }
+
+  void Pop() {
+    if (stack_.empty()) {
+      printf("Pop from empty StackTrace!!!\n");
+      return;
+    }
+    stack_.pop();
+  }
+
+ private:
+  std::stack<Info> stack_;
+  stack_t segv_stack;
+  size_t max_size_;
+};
+
+StackTrace* tracer = nullptr;
+
+void InitStackTrace(std::initializer_list<int> signums, size_t max_size) {
+  tracer = new StackTrace(signums, max_size);
 }
 
-struct FuncLine* FuncsCalledGetValues(size_t* num) {
-  if (funcs_called.ptr == NULL) {
-    return NULL;
-  }
-  size_t sz = funcs_called.sz;
-  if (*num > sz) {
-    *num = sz;
-  }
-  struct FuncLine* arr = (struct FuncLine*)calloc(*num, sizeof(int));
-  assert(arr != NULL && "Calloc failed in StackTrace.cpp:FuncsCalledGetValues");
-  for (size_t i = 0; i < *num; i++) {
-    arr[i] = FuncLine{(funcs_called.ptr[i]).func_name_, (funcs_called.ptr[i]).line_};
-  }
-  return arr;
-}
-
-void CallStackDestroy() {
-  if (funcs_called.ptr == NULL) {
-    return;
-  }
-  free(funcs_called.ptr);
+void FreeStackTrace() {
+  delete tracer;
+  tracer = nullptr;
 }
 
 void PrintStackInfoAndExit(int signum) {
-  static bool called_first_time = true;
-  if (!called_first_time) {
-    exit(199);
-  }
-  called_first_time = false;
-
-  switch(signum) {
-    case 11:
-      printf ("caught segv :^(, error = 11\n");
-      break;
-    case 6:
-      printf ("error = 6\n");
-      break;
-    default:
-      printf("can not recognize signum\n");
-      printf("signum: %d\n", signum);
-  }
-
-  size_t funcs_in_stack_num = funcs_called.maxcapacity;
-  struct FuncLine* arr = FuncsCalledGetValues(&funcs_in_stack_num);
-  if (arr == NULL) {
-    printf("0 called functions in stack\n");
-    exit(199);
-  }
-
-  printf ("%lu called functions in stack:\n", funcs_in_stack_num);
-  for (size_t i = 0; i < funcs_in_stack_num; i++) {
-    printf("%lu line: %lu, function name: %s\n", i + 1, arr[i].line_, arr[i].func_name_);
-  }
-
-  CallStackDestroy();
-  exit(199);
+  tracer->PrintStackInfoAndExit(signum);
 }
 
-void CallStackShrink() {
-  if (funcs_called.ptr == NULL) {
-    return;
-  }
-  funcs_called.ptr = (struct FuncLine*)realloc(funcs_called.ptr, funcs_called.capacity / funcs_called.incfac * sizeof(struct FuncLine));
-  funcs_called.capacity /= funcs_called.incfac;
+void StackPush(const Info& info) {
+  assert(tracer != nullptr && "Use of uninitialized StackTrace!");
+  tracer->Push(info);
 }
 
-void CallStackPopback() {
-  if (funcs_called.sz == 0 || funcs_called.ptr == NULL) {
-    fprintf(stderr, "CallStackPopback from empty stack!!!\n");
-    return;
-  }
-  funcs_called.ptr[--funcs_called.sz] = FuncLine{NULL, 0};
-  if (funcs_called.sz > funcs_called.mincapacity &&
-      funcs_called.sz <= funcs_called.capacity / (funcs_called.incfac * funcs_called.incfac)) {
-    CallStackShrink();
-  }
+void StackPop() {
+  assert(tracer != nullptr && "Use of uninitialized StackTrace!");
+  tracer->Pop();
 }

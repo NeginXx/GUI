@@ -1,0 +1,16 @@
+DEFINE_SKIN(Scalable, ButtonCloseNormal, "button_close_normal.png");
+DEFINE_SKIN(Scalable, ButtonCloseHover,  "button_close_hover.png");
+DEFINE_SKIN(Scalable, ButtonHide,        "button_hide.png");
+DEFINE_SKIN(Scalable, IconFolder,        "icon_folder.png");
+DEFINE_SKIN(Scalable, IconWarning,       "icon_warning.png");
+DEFINE_SKIN(Scalable, ToolEraser,        "tool_eraser.png");
+DEFINE_SKIN(Scalable, ToolPencil,        "tool_pencil.png");
+DEFINE_SKIN(Tiling,   TexMainLightExtra, "tex_main_light_extra.png");
+DEFINE_SKIN(Tiling,   TexMainLight,      "tex_main_light.png");
+DEFINE_SKIN(Tiling,   TexMain,           "tex_main.png");
+DEFINE_SKIN(Tiling,   TexMainDark,       "tex_main_dark.png");
+DEFINE_SKIN(Tiling,   TexMainDarkExtra,  "tex_main_dark_extra.png");
+DEFINE_SKIN(Tiling,   TexStriped,        "tex_striped.png");
+DEFINE_SKIN(Tiling,   TexStripedLight,   "tex_striped_light.png");
+DEFINE_SKIN(Tiling,   TexWhite,          "tex_white.png");
+DEFINE_SKIN(Tiling,   TexTransparent,    "tex_transparent.png");

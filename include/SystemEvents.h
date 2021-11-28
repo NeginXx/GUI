@@ -10,19 +10,19 @@ struct MouseClickInfo {
     kLeftButton,
     kRightButton
   };
-  Point2D<size_t> coordinate = {0, 0};
+  Point2D<uint> coordinate = {0, 0};
   Button button = kLeftButton;
 };
 
 struct MouseMotionInfo {
-  Point2D<size_t> old_mouse_pos = {0, 0};
-  Point2D<size_t> new_mouse_pos = {0, 0};
+  Point2D<uint> old_mouse_pos = {0, 0};
+  Point2D<uint> new_mouse_pos = {0, 0};
 };
 
 struct WindowResizeInfo {
-  size_t new_width = 0;
-  size_t new_height = 0;
-  size_t window_id = 0;
+  uint new_width = 0;
+  uint new_height = 0;
+  uint window_id = 0;
 };
 
 struct SystemEvent {

@@ -3,11 +3,13 @@
 #include "../include/GLWindow.h"
 #include "../include/App.h"
 
+#include <stdio.h>
 int main() {
-  signal(SIGSEGV, PrintStackInfoAndExit);
+  InitStackTrace({SIGSEGV, SIGABRT}, 100);
   srand(time(NULL));
+  volatile char* buf = new char[100];
   GLWindow window(1848, 1016);
-  // GLWindow window(1000, 1000);
   Render render(window);
   RunApp(&window, &render);
+  FreeStackTrace();
 }

@@ -101,7 +101,7 @@ class List {
       return it;
     }
 
-    T& operator*() const {
+    T& operator*() {
       return node_ptr_->val;
     }
 
@@ -160,9 +160,9 @@ class List {
 
 
  private:
-  Node* head_ = nullptr;
-  Node* tail_ = nullptr;
-  size_t size_ = 0;
+  Node* head_;
+  Node* tail_;
+  size_t size_;
 
   struct Node {
     Node* next = nullptr;

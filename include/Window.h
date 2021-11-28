@@ -1,124 +1,294 @@
 #pragma once
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include "main.h"
 #include "List.h"
-#include "ActionCommands.h"
+#include "ActionFunctors.h"
 #include "SystemEvents.h"
 
-namespace Widget {
+namespace Listener {
   class Abstract {
    public:
-    Abstract() = delete;
-    Abstract(const Rectangle<size_t>& position)
-    : position_(position) {};
     virtual ~Abstract() = default;
-
-    bool IsMouseCoordinatesInBound(const Point2D<size_t>& parent_coordinates,
-                                   const Point2D<size_t>& mouse_coordinates);
-    void Move(int x_diff, int y_diff);
-    void Resize(int width_diff, int height_diff);
-    virtual void Draw(const Point2D<size_t>& parent_coordinates) = 0;
-    virtual void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                                    const SystemEvent& event) = 0;
-
-   protected:
-    Rectangle<size_t> position_;
+    virtual void ProcessSystemEvent(const SystemEvent& event) = 0;
   };
 
-  class Window : public Abstract {
+  class Drag : public Abstract {
    public:
-    Window() = delete;
-    Window(const Rectangle<size_t>& position,
-           std::initializer_list<Widget::Abstract*> children,
-           DrawFunctor::Abstract* draw_func)
-    : Abstract(position), children_(children),
-      draw_func_(draw_func) {};
-    ~Window() override;
+    Drag() = delete;
+    Drag(Functor::MoveWidget* move_func, Widget::Drag* widget_drag);
+    ~Drag() override = default;
 
-    List<Widget::Abstract*>& GetChildren();
-    void AddChild(Widget::Abstract* widget);
-    void Draw(const Point2D<size_t>& parent_coordinates) override;
-    void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                            const SystemEvent& event) override;
+    void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
-    List<Widget::Abstract*> children_;
-    DrawFunctor::Abstract* draw_func_;
+    Functor::MoveWidget* move_func_;
+    Widget::Drag* widget_drag_;
   };
 
-  class Resize : public Abstract {
+  class ButtonClick : public Abstract {
    public:
-    Resize() = delete;
-    Resize(const Rectangle<size_t>& position,
-           ResizeFunctor::Abstract* resize_func,
-           DrawFunctor::Abstract* draw_func)
-    : Abstract(position),
-      resize_func_(resize_func),
-      draw_func_(draw_func) {};
-    ~Resize() override = default;
+    ButtonClick() = delete;
+    ButtonClick(Functor::Abstract* action_func, Widget::Button* button);
+    ~ButtonClick() override = default;
 
-    void Draw(const Point2D<size_t>& parent_coordinates) override;
-    void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                            const SystemEvent& event) override;
+    void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
-    ResizeFunctor::Abstract* resize_func_;
-    DrawFunctor::Abstract* draw_func_;
+    Functor::Abstract* action_func_;
+    Widget::Button* button_;
   };
 
-  class TitleBar : public Abstract {
+  class ButtonHover : public Abstract {
    public:
-    TitleBar() = delete;
-    TitleBar(const Rectangle<size_t>& position,
-             std::initializer_list<Widget::Abstract*> children,
-             MoveFunctor::Abstract* move_func,
-             DrawFunctor::Abstract* draw_func)
-    : Abstract(position), children_(children),
-      move_func_(move_func), draw_func_(draw_func) {}
-    ~TitleBar() override;
+    ButtonHover() = delete;
+    ButtonHover(Widget::Button* button);
+    ~ButtonHover() override = default;
 
-    void Draw(const Point2D<size_t>& parent_coordinates) override;
-    void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                            const SystemEvent& event) override;
+    void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
-    List<Widget::Abstract*> children_;
-    MoveFunctor::Abstract* move_func_;
-    DrawFunctor::Abstract* draw_func_;
-  };
-
-  class Button : public Abstract {
-   public:
-    Button() = delete;
-    Button(const Rectangle<size_t>& position,
-           ActionFunctor::Abstract* action_func,
-           DrawFunctor::Abstract* draw_func)
-    : Abstract(position),
-      action_func_(action_func),
-      draw_func_(draw_func) {};
-    ~Button() override = default;
-
-    void Draw(const Point2D<size_t>& parent_coordinates) override;
-    void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                            const SystemEvent& event) override;
-
-   private:
-    ActionFunctor::Abstract* action_func_;
-    DrawFunctor::Abstract* draw_func_;
+    Widget::Button* button_;
   };
 
   class Canvas : public Abstract {
    public:
     Canvas() = delete;
-    Canvas(const Rectangle<size_t>& position,
-           CanvasFunctor* canvas_func)
-    : Abstract(position),
-      canvas_func_(canvas_func) {};
+    Canvas(Widget::Canvas* canvas,
+           Point2D<uint> coord,
+           Texture* painting_area);
+    ~Canvas() override = default;
 
-    void Draw(const Point2D<size_t>& parent_coordinates) override;
-    void ProcessSystemEvent(const Point2D<size_t>& parent_coordinates,
-                            const SystemEvent& event) override;
+    void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
-    CanvasFunctor* canvas_func_;
+    Widget::Canvas* canvas_;
+    Point2D<uint> prev_point_;
+    Texture* painting_area_;
+  };
+}
+
+namespace Widget {
+  class Abstract {
+   public:
+    Abstract() = delete;
+    Abstract(const Rectangle& position,
+             DrawFunctor::Abstract* draw_func);
+    virtual ~Abstract() = default;
+
+    Rectangle GetPosition();
+    void SetDrawFunc(DrawFunctor::Abstract* draw_func);
+    virtual Point2D<int> Move(const Point2D<int>& shift,
+                              const Rectangle& bounds);
+
+    virtual void Resize(const Point2D<int>& corner_shift,
+                        int width_shift, int height_shift,
+                        const Rectangle& bounds);
+
+    virtual bool IsMouseCoordinatesInBound(const Point2D<uint>& mouse_coordinates);
+    virtual void Draw();
+    virtual void ProcessSystemEvent(const SystemEvent& event) = 0;
+
+   protected:
+    Rectangle position_;
+    DrawFunctor::Abstract* draw_func_;
+  };
+
+  class AbstractContainer : public Abstract {
+   public:
+    AbstractContainer() = delete;
+    AbstractContainer(const Rectangle& position,
+                      std::initializer_list<Widget::Abstract*> children,
+                      DrawFunctor::Abstract* draw_func);
+    ~AbstractContainer() override;
+
+    void DeleteChildren();
+    void DrawChildren();
+    List<Widget::Abstract*>& GetChildren();
+    void AddChild(Widget::Abstract* widget);
+    void PushMouseUpToChildInFocus(const SystemEvent& event);
+    void PushMouseMotionToChildInFocus(const SystemEvent& event);
+    void PushMouseDownToChildInFocusAndTopHim(const SystemEvent& event);
+
+    void Draw() override;
+    Point2D<int> Move(const Point2D<int>& shift,
+                      const Rectangle& bounds) override;
+
+   protected:
+    List<Widget::Abstract*> children_;
+  };
+
+  class MainWindow : public AbstractContainer {
+   public:
+    MainWindow() = delete;
+    MainWindow(const Rectangle& position,
+               std::initializer_list<Widget::Abstract*> children,
+               DrawFunctor::Abstract* draw_func);
+    ~MainWindow() override = default;
+
+    void AddListener(SystemEvent::Type event_type, Listener::Abstract* listener);
+    void DeleteListener(SystemEvent::Type event_type, Listener::Abstract* listener);
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+   private:
+    std::unordered_map<SystemEvent::Type, std::unordered_set<Listener::Abstract*> > listener_table_;
+    std::unordered_set<Listener::Abstract*> processed_listeners_;
+
+    bool IsListenerProcessed(Listener::Abstract* listener);
+    void SendEventToListeners(const SystemEvent& event);
+  };
+
+  class Container : public AbstractContainer {
+   public:
+    Container() = delete;
+    Container(const Rectangle& position,
+              std::initializer_list<Widget::Abstract*> children,
+              DrawFunctor::Abstract* draw_func);
+    ~Container() override = default;
+
+    void ProcessSystemEvent(const SystemEvent& event) override;
+  };
+
+  class Drag : public AbstractContainer {
+   public:
+    Drag() = delete;
+    Drag(const Rectangle& position,
+         Widget::MainWindow* main_window,
+         std::initializer_list<Widget::Abstract*> children,
+         Functor::MoveWidget* move_func,
+         DrawFunctor::Abstract* draw_func);
+    ~Drag() override;
+
+    void StartDrag();
+    void FinishDrag();
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+   protected:
+    Widget::MainWindow* main_window_;
+    Functor::MoveWidget* move_func_;
+    Listener::Drag* drag_listener_;
+  };
+
+  class Button : public Abstract {
+   public:
+    struct DrawFunctors {
+      DrawFunctor::Abstract* draw_func_main = nullptr;
+      DrawFunctor::Abstract* draw_func_hover = nullptr;
+      DrawFunctor::Abstract* draw_func_click = nullptr;
+    };
+
+    Button() = delete;
+    Button(const Rectangle& position,
+           Widget::MainWindow* main_window,
+           Functor::Abstract* action_func,
+           const DrawFunctors& draw_funcs);
+    ~Button() override;
+
+    void StartListeningMouseUp();
+    void StartListeningMouseMotion();
+    void StopListeningMouseUp();
+    void StopListeningMouseMotion();
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+   protected:
+    Widget::MainWindow* main_window_;
+    Functor::Abstract* action_func_;
+    DrawFunctors draw_funcs_;
+    Listener::ButtonClick* click_listener_;
+    Listener::ButtonHover* hover_listener_;
+  };
+
+  class Canvas : public Abstract {
+   public:
+    Canvas() = delete;
+    Canvas(const Rectangle& position,
+           Widget::MainWindow* main_window,
+           Render* render);
+    ~Canvas() override;
+
+    void StartPainting(Point2D<uint> coord);
+    void FinishPainting();
+    void ProcessSystemEvent(const SystemEvent& event) override;
+    void Draw() override;
+
+   protected:
+    Widget::MainWindow* main_window_;
+    Texture* painting_area_;
+    Listener::Canvas* painting_listener_;
+  };
+}
+
+namespace UserWidget {
+  class StandardWindow : public Widget::Container {
+   public:
+    StandardWindow() = delete;
+    StandardWindow(const Rectangle& pos,
+                   Widget::MainWindow* main_window);
+    ~StandardWindow() override;
+
+   private:
+    Functor::CloseWidget* func_close_widget_;
+    Functor::MoveWidget* func_move_;
+  };
+
+  class PaintWindow : public StandardWindow {
+   public:
+    PaintWindow() = delete;
+    PaintWindow(const Rectangle& pos,
+                Widget::MainWindow* main_window,
+                Render* render);
+    ~PaintWindow() override;
+
+   private:
+    std::vector<DrawFunctor::Abstract*> draw_funcs_to_free_;
+    std::vector<Functor::SetTool*> set_funcs_to_free_;
+    std::vector<Functor::PickColor*> pick_color_funcs_to_free_;
+    std::vector<Texture*> textures_to_free_;
+
+    void CreatePalette(Widget::Container* palette, Render* render, uint palette_width,
+                       const Point2D<int>& coord, Widget::MainWindow* main_window);
+    Widget::Button* CreateColorButton(Render* render, uint button_width,
+                                      const Point2D<int>& coord, Widget::MainWindow* main_window);
+  };
+
+  class HoleWindow : public Widget::Drag {
+   public:
+    HoleWindow() = delete;
+    HoleWindow(const Rectangle& position,
+               Widget::MainWindow* main_window,
+               Render* render);
+    ~HoleWindow() override;
+    void Draw() override;
+    bool IsMouseCoordinatesInBound(const Point2D<uint>& mouse_coordinates) override;
+
+   private:
+    Texture* texture_;
+
+    bool IsInBound(const Point2D<int>& mouse_coord);
+  };
+
+  class ButtonWithText : public Widget::Button {
+   public:
+    ButtonWithText() = delete;
+    ButtonWithText(const Rectangle& position,
+                   Widget::MainWindow* main_window,
+                   Functor::Abstract* action_func,
+                   const DrawFunctors& draw_funcs,
+                   const char* text,
+                   Render* render,
+                   const Color& color);
+    ButtonWithText(const Point2D<int>& position,
+                   Widget::MainWindow* main_window,
+                   Functor::Abstract* action_func,
+                   const DrawFunctors& draw_funcs,
+                   const char* text,
+                   Render* render,
+                   const Color& color);
+    ~ButtonWithText() override;
+
+   protected:
+    Texture* text_;
+    DrawFunctor::TextTexture* draw_text_;
   };
 }

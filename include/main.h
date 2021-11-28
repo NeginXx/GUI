@@ -5,17 +5,25 @@
 #include <ctime>
 #include <cmath>
 #include <cstdint>
-#include <queue>
+#include <cstring>
 #include "StackTrace.h"
 
-const float kPi = 3.1416;
+const float kPi = 3.1416f;
 
 struct Color {
 	unsigned char red = 0;
 	unsigned char green = 0;					
 	unsigned char blue = 0;
-	unsigned char alpha = 0;
+	unsigned char alpha = 255;
 };
+
+const Color kLightPurple = {171, 60, 255};
+const Color kLightGreen  = {107, 216, 79};
+const Color kLightPink   = {255, 153, 204};
+const Color kBlue        = {0, 0, 255};
+const Color kRed         = {255, 0, 0};
+const Color kBlack       = {0, 0, 0};
+const Color kWhite       = {255, 255, 255};
 
 template<typename T>
 inline T Min(const T& lhs, const T& rhs) {
@@ -63,15 +71,20 @@ struct Point2D {
 		x = v.x;
 		y = v.y;
 	}
-	Point2D<T> operator+=(const Point2D<T>& p) {
+	Point2D<T>& operator+=(const Point2D<T>& p) {
 		x += p.x;
 		y += p.y;
 		return *this;
 	}
-	Point2D<T> operator-=(const Point2D<T>& p) {
+	Point2D<T>& operator-=(const Point2D<T>& p) {
 		x -= p.x;
 		y -= p.y;
 		return *this;
+	}
+
+	template <typename T1>
+	explicit operator Point2D<T1>() const {
+	  return {static_cast<T1>(x), static_cast<T1>(y)};
 	}
 };
 
@@ -92,13 +105,20 @@ struct Vec2D {
 		x = p.x;
 		y = p.y;
 	}
+	T GetLength() {
+		return sqrt(x * x + y * y);
+	}
+	void Normalize() {
+		T len = GetLength();
+		x /= len;
+		y /= len;
+	}
 };
 
-template <typename T>
 struct Rectangle {
-  Point2D<T> corner;
-  T width;
-  T height;
+  Point2D<int> corner;
+  uint width;
+  uint height;
 };
 
 template <typename T>
@@ -113,6 +133,12 @@ Point2D<T> operator-(const Point2D<T>& lhs,
 	                   const Point2D<T>& rhs) {
 	Point2D<T> res = lhs;
 	return res -= rhs;
+}
+
+template <typename T>
+Point2D<T> operator/(const Point2D<T>& lhs,
+	                   T val) {
+	return Point2D<T>{lhs.x / val, lhs.y / val};
 }
 
 template <typename T>

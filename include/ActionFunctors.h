@@ -2,103 +2,158 @@
 #include "main.h"
 #include "Render.h"
 #include "Texture.h"
+#include "Tools.h"
 
 namespace Widget {
 	class Abstract;
-	class Window;
-	class Resize;
-	class TitleBar;
+	class AbstractContainer;
+	class MainWindow;
+	class Container;
+	class Drag;
 	class Button;
+	class Canvas;
 }
 
 namespace DrawFunctor {
 	class Abstract {
 	 public:
-	 	virtual void Action(const Rectangle<size_t>& widget_position) = 0;
+	 	virtual ~Abstract() = default;
+	 	virtual void Action(const Rectangle& place_to_draw) = 0;
 	};
 
-	class WindowWithChunkedTexture : public Abstract {
+	class TilingTexture : public Abstract {
 	 public:
-	 	WindowWithChunkedTexture() = delete;
-	 	WindowWithChunkedTexture(Texture* texture)
-	 	: texture_(texture) {};
+	 	TilingTexture() = delete;
+	 	TilingTexture(Texture* texture,
+	 		            const Rectangle& relative_drawing_coord = {});
 
-	 	void Action(const Rectangle<size_t>& widget_postiion) override;
+	 	void Action(const Rectangle& place_to_draw) override;
 
 	 private:
 	 	Texture* texture_;
+	 	Rectangle relative_drawing_coord_;
 	};
 
-	class WindowWithScalableTexture : public Abstract {
+	class ScalableTexture : public Abstract {
 	 public:
-	 	WindowWithScalableTexture() = delete;
-	 	WindowWithScalableTexture(Texture* texture)
-	 	: texture_(texture) {};
+	 	ScalableTexture() = delete;
+	 	ScalableTexture(Texture* texture,
+	 		              const Rectangle& relative_drawing_coord = {});
 
-	 	void Action(const Rectangle<size_t>& widget_postiion) override;
+	 	void Action(const Rectangle& place_to_draw) override;
 
 	 private:
 	 	Texture* texture_;
+	 	Rectangle relative_drawing_coord_;
+	};
+
+	class TextTexture : public Abstract {
+	 public:
+	 	TextTexture() = delete;
+	 	TextTexture(Texture* text,
+	 		          const Rectangle& relative_drawing_coord = {});
+
+	 	void Action(const Rectangle& place_to_draw) override;
+
+	 private:
+	 	Texture* text_;
+	 	Rectangle relative_drawing_coord_;
+	};
+
+	class MultipleFunctors : public Abstract {
+	 public:
+	 	MultipleFunctors() = delete;
+	 	MultipleFunctors(std::initializer_list<DrawFunctor::Abstract*> draw_functors_list);
+
+	 	void Action(const Rectangle& place_to_draw) override;
+
+	 protected:
+	 	List<DrawFunctor::Abstract*> draw_functors_list_;
 	};
 }
 
 namespace Functor {
 	class Abstract {
 	 public:
+	 	virtual ~Abstract() = default;
 	 	virtual void Action() = 0;
 	};
 
-	class MoveWidget {
+	class MoveWidget : public Abstract {
 	 public:
 	 	MoveWidget() = delete;
 	 	MoveWidget(Widget::Abstract* widget_to_move,
-  	           const Rectangle<size_t>& widget_bounds,
-  	           Point2D<int> shift)
-	 	: widget_to_move_(widget_to_move),
-	 	  widget_bounds_(widget_bounds),
-	 	  shift_(shift) {}
+  	           const Rectangle& widget_bounds);
 
-	 	void Action() override {
-	 		widget_to_move_->Move(shift_, widget_bounds_);
-	 	}
-
-	 	void SetShift(const Point2D<int>& shift) {
-	 	 shift_ = shift;
-	 	}
+	 	void SetWidgetToMove(Widget::Abstract* widget_to_move_);
+	 	void Action() override;
+	 	void SetShift(const Point2D<int>& shift);
 
 	 private:
 	 	Widget::Abstract* widget_to_move_;
-  	const Rectangle<size_t>& widget_bounds_;
+  	Rectangle widget_bounds_;
   	Point2D<int> shift_;
-	}
+	};
 
 	class CloseWidget : public Abstract {
 	 public:
 	 	CloseWidget() = delete;
 	 	CloseWidget(Widget::Abstract* widget_to_close,
-	 		          Widget::Window* window_parent)
-	 	: widget_to_close_(widget_to_close),
-	 	  window_parent_(window_parent) {};
+	 		          Widget::AbstractContainer* window_parent);
 
+	 	void SetWidgetToClose(Widget::Abstract* widget_to_close);
+	 	void SetWindowParent(Widget::AbstractContainer* window_parent);
 	  void Action() override;
 
 	 private:
 	 	Widget::Abstract* widget_to_close_;
-	 	Widget::Window* window_parent_;
+	 	Widget::AbstractContainer* window_parent_;
 	};
 
 	class OpenFile : public Abstract {
 	 public:
 	 	OpenFile() = delete;
-	 	OpenFile(Widget::Window* parent)
-	 	: parent_(parent) {}
+	 	OpenFile(Widget::MainWindow* main_window);
 
-	 	void SetParent(Widget::Window* parent) {
-	 		parent_ = parent;
-	 	}
+	 	void SetMainWindow(Widget::MainWindow* main_window);
 	  void Action() override;
 
 	 private:
-	 	Widget::Window* parent_;
+	 	Widget::MainWindow* main_window_;
+	};
+
+	class OpenCanvas : public Abstract {
+	 public:
+	  OpenCanvas() = delete;
+	  OpenCanvas(Widget::MainWindow* main_window, Render* render);
+      
+	  void SetMainWindow(Widget::MainWindow* main_window);
+	  void Action() override;
+
+	 private:
+	 	Widget::MainWindow* main_window_;
+	 	Render* render_;
+	};
+
+	class SetTool : public Abstract {
+	 public:
+	 	SetTool() = delete;
+	 	SetTool(Tool::Type tool);
+
+	  void Action() override;
+
+	 private:
+	 	Tool::Type tool_;
+	};
+
+	class PickColor : public Abstract {
+	 public:
+	 	PickColor() = delete;
+	 	PickColor(const Color& color);
+
+	  void Action() override;
+
+	 private:
+	 	Color color_;
 	};
 }

@@ -1,7 +1,12 @@
-Flags = -std=c++17 -g -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-unused-variable -Wno-switch -O2
+Compiler = clang++
 
-CXXFLAGS = $(Flags) $(pkg-config sdl2 SDL2_ttf SDL2_image --cflags)
-LXXFLAGS = -lSDL2 -lSDL2_ttf -lSDL2_image #$(pkg-config sdl2 SDL2_ttf SDL2_image --libs)
+Flags = -std=c++17 -O2 -Wall \
+-Wextra -Wpedantic -Wno-unused-parameter \
+-Wno-dollar-in-identifier-extension     \
+-Wno-unused-variable -Wno-switch -fsanitize=address -g
+
+CXXFLAGS = $(Flags) -I/usr/include/SDL2
+LXXFLAGS = -lSDL2 -lSDL2_ttf -lSDL2_image -fsanitize=address
 
 Include = include
 Src = src
@@ -12,8 +17,13 @@ Headers = $(Include)/List.h
 Objects = $(addprefix $(Bin)/, $(Cpp:.cpp=.o))
 
 out: $(Objects)
-	g++ -o out $(Objects) $(LXXFLAGS)
+	$(Compiler) -o out $(Objects) $(LXXFLAGS)
+
 
 vpath %.cpp $(Src)
 $(Bin)/%.o: %.cpp $(Headers) Makefile
-	g++ -c $< $(CXXFLAGS) -o $@
+	$(Compiler) -c $< $(CXXFLAGS) -o $@
+
+# .PHONY: run
+# run:
+# 	ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-10/bin/llvm-symbolizer ./out

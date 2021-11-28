@@ -32,10 +32,11 @@ bool IsSomeEventInQueue(SystemEvent* event) {
       } else {
         event->info.mouse_click.button = MouseClickInfo::kRightButton;
       }
-      assert(sdl_event.button.x >= 0);
-      assert(sdl_event.button.y >= 0);
       auto info = sdl_event.button;
-      event->info.mouse_click.coordinate = Point2D<size_t>{(size_t)info.x, (size_t)info.y};
+      assert(info.x >= 0);
+      assert(info.y >= 0);
+      event->info.mouse_click.coordinate = Point2D<uint>{ (uint)info.x,
+                                                          (uint)info.y };
       break;
     }
 
@@ -46,37 +47,40 @@ bool IsSomeEventInQueue(SystemEvent* event) {
       } else {
         event->info.mouse_click.button = MouseClickInfo::kRightButton;
       }
-      assert(sdl_event.button.x >= 0);
-      assert(sdl_event.button.y >= 0);
       auto info = sdl_event.button;
-      event->info.mouse_click.coordinate = Point2D<size_t>{(size_t)info.x, (size_t)info.y};
+      assert(info.x >= 0);
+      assert(info.y >= 0);
+      event->info.mouse_click.coordinate = Point2D<uint>{ (uint)info.x,
+                                                          (uint)info.y };
       break;
     }
 
     case SDL_MOUSEMOTION: {
       event->type = SystemEvent::kMouseMotion;
       auto info = sdl_event.motion;
-      event->info.mouse_motion = { {(size_t)info.x, (size_t)info.y},
-                                   {(size_t)Max(0, info.x + info.xrel), (size_t)Max(0, info.y + info.yrel)} };
+      assert(info.x >= 0);
+      assert(info.y >= 0);
+      event->info.mouse_motion = { {(uint)info.x, (uint)info.y},
+                                   {(uint)Max(0, info.x + info.xrel), (uint)Max(0, info.y + info.yrel)} };
       break;
     }
 
     case SDL_WINDOWEVENT: {
-      if (sdl_event.window.event == SDL_WINDOWEVENT_RESIZED) {
-        event->type = SystemEvent::kWindowResize;
-        auto info = sdl_event.window;
-        assert(info.data1 >= 0);
-        assert(info.data2 >= 0);
-        event->info.window_resize = {(size_t)info.data1, (size_t)info.data2, info.windowID};
-      } else {
+      if (sdl_event.window.event != SDL_WINDOWEVENT_RESIZED) {
         return false;
       }
+
+      event->type = SystemEvent::kWindowResize;
+      auto info = sdl_event.window;
+      assert(info.data1 >= 0);
+      assert(info.data2 >= 0);
+      event->info.window_resize = { (uint)info.data1,
+                                    (uint)info.data2,
+                                    info.windowID };
       break;
     }
 
-    default: {
-      return false;
-    }
+    default: return false;
   }
 
   return true;

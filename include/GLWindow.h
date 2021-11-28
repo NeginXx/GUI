@@ -4,9 +4,9 @@ struct SDL_Window;
 
 class GLWindow {
  public:
-	GLWindow(size_t width, size_t height);
-	size_t GetWidth() const;
-	size_t GetHeight() const;
+	GLWindow(uint width, uint height);
+	uint GetWidth() const;
+	uint GetHeight() const;
 	SDL_Window* GetWindow() const;
 	void RenderPresent(Render* render);
 	~GLWindow();
