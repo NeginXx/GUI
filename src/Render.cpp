@@ -1,18 +1,17 @@
 #include <SDL2/SDL_ttf.h>
 #include "../include/Render.h"
 #include "../include/GLWindow.h"
-
-const char* kFontName = "fonts/OpenSans-Bold.ttf";
-// const char* kFontName = "fonts/Vogue.ttf";
-const uint kFontSize = 20;
+#include "../include/GUIConstants.h"
 
 Render::Render(const GLWindow& window) {
   assert(TTF_Init() >= 0);
-  font_ = TTF_OpenFont(kFontName, kFontSize);
+  char temp[100] = {};
+  sprintf(temp, "%s/%s", kFontsDir, kFontName);
+  font_ = TTF_OpenFont(temp, kFontSize);
   assert(font_ != nullptr);
   SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
   render_ = SDL_CreateRenderer(window.GetWindow(), -1,
-                             SDL_RENDERER_ACCELERATED);
+                               SDL_RENDERER_ACCELERATED);
   assert(render_ != nullptr);
   SDL_SetRenderDrawBlendMode(render_, SDL_BLENDMODE_BLEND);
 }

@@ -13,9 +13,11 @@
 #include "../include/GUIConstants.h"
 
 // Declaring textures and draw functors
-#define DEFINE_SKIN(Scalability, Name, file_name) \
-  extern Texture* kTexture##Name;                 \
-  extern DrawFunctor::Scalability##Texture* kFuncDraw##Name;
+#define DEFINE_SKIN(Scalability, Name, file_name)                \
+  extern Texture* kTexture##Name;                                \
+  extern DrawFunctor::Scalability##Texture* kFuncDraw##Name;     \
+  extern DrawFunctor::MultipleFunctors* kFuncDraw##Name##Framed; \
+  DrawFunctor::Scalability##Texture* kFuncDraw##Name##Auxiliary;
   #include "../include/DEFINE_SKIN.h"
 #undef DEFINE_SKIN
 
@@ -38,30 +40,54 @@ class MainBar : public Widget::Container {
   MainBar() = delete;
 
   ~MainBar() override {
-    delete func_open_file_;
+    delete dropdown_list_;
+    delete func_;
+    delete func_open_hole_window_;
+    delete func_open_canvas_;
   }
 
   MainBar(Widget::MainWindow* main_window,
           Render* render, uint width)
   : Container({{0, 0}, width, kStandardTitlebarHeight}, {}, kFuncDrawTexMain)
   {
-    func_open_file_ = new Functor::OpenCanvas(main_window, render);
-    auto file_button =
-    new UserWidget::ButtonWithText({0, 0}, main_window, func_open_file_, {kFuncDrawTexMain, kFuncDrawTexMainDark, kFuncDrawTexMainDarkExtra},
-                                   "File", render, kWhite);
-    AddChild(file_button);
+    func_open_canvas_ = new Functor::OpenCanvas(main_window, render);
+    func_open_hole_window_ = new Functor::OpenHoleWindow(main_window, render);
+    // auto file_button =
+    // new UserWidget::BasicButtonWithText({0, 0}, main_window, func_open_canvas_, {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra},
+    //                                     render, kWhite}, "File");
+    // AddChild(file_button);
+    // int x = file_button->GetPosition().width;
+
+    func_ = new Functor::DropdownListPopUp(nullptr);
+    auto some_button =
+    new UserWidget::ButtonOnPressWithText({0, 0}, main_window, func_, {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra},
+                                          render, kWhite}, "File");
+    dropdown_list_ =
+    new UserWidget::DropdownList({0, kStandardTitlebarHeight}, main_window, main_window,
+                                 some_button, 200, kStandardTitlebarHeight, {{func_open_canvas_, "Open canvas"}, {func_open_hole_window_, "Open hole window"}},
+                                 {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra}, render, kWhite});
+    func_->SetDropdownList(dropdown_list_);
+    AddChild(some_button);
+
     main_window->AddChild(this);
   }
 
  private:
-  Functor::OpenCanvas* func_open_file_;
+  Functor::OpenCanvas* func_open_canvas_;
+  Functor::OpenHoleWindow* func_open_hole_window_;
+  Functor::DropdownListPopUp* func_;
+  UserWidget::DropdownList* dropdown_list_;
 };
 
 void RunApp(GLWindow* gl_window, Render* render) {
   // Initializing textures and draw functors
+  Texture* kTextureFrame = new Texture("tex_main_dark.png", render);
+  DrawFunctor::Abstract* kFuncDrawFrame = new DrawFunctor::ScalableTexture(kTextureFrame);
   #define DEFINE_SKIN(Scalability, Name, file_name)  \
     kTexture##Name = new Texture(file_name, render); \
-    kFuncDraw##Name = new DrawFunctor::Scalability##Texture(kTexture##Name);
+    kFuncDraw##Name = new DrawFunctor::Scalability##Texture(kTexture##Name); \
+    kFuncDraw##Name##Auxiliary = new DrawFunctor::Scalability##Texture(kTexture##Name, {kStandardFrameWidth, kStandardFrameWidth}); \
+    kFuncDraw##Name##Framed = new DrawFunctor::MultipleFunctors({kFuncDrawFrame, kFuncDraw##Name##Auxiliary})
     #include "../include/DEFINE_SKIN.h"
   #undef DEFINE_SKIN
 
@@ -72,7 +98,7 @@ void RunApp(GLWindow* gl_window, Render* render) {
 
   auto main_window = new Widget::MainWindow({{0, 0}, gl_window_width, gl_window_height}, {}, kFuncDrawTexMainLight);
   auto main_bar = new MainBar(main_window, render, gl_window_width);
-  auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window, render);
+  // auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window, render);
   // auto hole_window = new UserWidget::HoleWindow({{-500, kStandardTitlebarHeight}, 510, 700}, main_window, render);
 
   // Rectangle pos = {{500, 500}, kStandardButtonWidth * 10, kStandardButtonWidth};
@@ -82,6 +108,14 @@ void RunApp(GLWindow* gl_window, Render* render) {
   // main_window->AddChild(some_button);
 
   // -----------------------------------------------
+
+  // Texture tex(10, 10, render, {0, 0, 0, 0});
+  // tex.DrawLine({1, 1}, {8, 1}, kBlack);
+  // tex.DrawLine({1, 8}, {8, 8}, kBlack);
+  // tex.DrawLine({1, 1}, {1, 8}, kBlack);
+  // tex.DrawLine({8, 1}, {8, 8}, kBlack);
+  // tex.DrawPoint({8, 8}, kBlack);
+  // tex.SaveToPNG("square_tool");
 
   SystemEvent event = {};
   bool is_running = true;
@@ -106,7 +140,6 @@ void RunApp(GLWindow* gl_window, Render* render) {
         }
 
         default: {
-          printf("!\n");
           main_window->ProcessSystemEvent(event);
           break;
         }
@@ -125,10 +158,15 @@ void RunApp(GLWindow* gl_window, Render* render) {
   }
 
   delete main_window;
+  delete Tool::Manager::GetInstance();
   // deleting textures and draw functors
+  delete kTextureFrame;
+  delete kFuncDrawFrame;
   #define DEFINE_SKIN(Scalability, Name, file_name) \
     delete kTexture##Name;                          \
-    delete kFuncDraw##Name;
+    delete kFuncDraw##Name;                         \
+    delete kFuncDraw##Name##Auxiliary;              \
+    delete kFuncDraw##Name##Framed;
     #include "../include/DEFINE_SKIN.h"
   #undef DEFINE_SKIN
 }

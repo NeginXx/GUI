@@ -1,6 +1,6 @@
 #pragma once
 #include "main.h"
-#include "Plugin.h"
+#include "../plugins_src/Plugin.h"
 #include "Texture.h"
 
 class PluginTexture : public Plugin::ITexture {
@@ -37,8 +37,10 @@ class PluginTexture : public Plugin::ITexture {
   }
 
   void DrawCircle(int x, int y, int radius, Plugin::Color color) override {
+  	$;
   	assert(radius >= 0);
   	texture_.DrawCircle(Point2D<int>{x, y}, (uint)radius, GetColor(color));
+  	$$;
   }
 
   void DrawRect(int x, int y, int width, int height, Plugin::Color color) override {

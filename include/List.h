@@ -25,7 +25,7 @@ class List {
   List(const std::initializer_list<T>& init_list) : List() {
     if (init_list.begin() != init_list.end()) {
       auto it = init_list.end();
-      do { this->PushFront(*--it); } while (it != init_list.begin());
+      do { this->PushFront(*--it); ++size_; } while (it != init_list.begin());
     }
   }
 
@@ -119,6 +119,24 @@ class List {
     Node* node_ptr_ = nullptr;
   };
 
+  Iterator begin() const {
+    return Iterator(head_);
+  }
+
+  Iterator end() const {
+    return Iterator(tail_);
+  }
+
+  Iterator Find(const T& val) {
+    Iterator it = begin();
+    for (; it != end(); ++it) {
+      if (*it == val) {
+        break;
+      }
+    }
+    return it;
+  }
+
   void Pop(Iterator& it) {
     Node* node = it.node_ptr_;
     assert(node->next != nullptr && "Pop of list.end()!");
@@ -141,6 +159,7 @@ class List {
     while (cur_node != nullptr) {
       printf("prev = %p\n", cur_node->prev);
       printf("node = %p\n", cur_node);
+      printf("val = %p\n", cur_node->val);
       printf("next = %p\n", cur_node->next);
       cur_node = cur_node->next;
       if (cur_node != nullptr) {
@@ -149,15 +168,6 @@ class List {
     }
     printf("---------------------\n");
   }
-
-  Iterator begin() const {
-    return Iterator(head_);
-  }
-
-  Iterator end() const {
-    return Iterator(tail_);
-  }
-
 
  private:
   Node* head_;

@@ -1,9 +1,45 @@
+#include <stdio.h>
+#include <dlfcn.h>
 #include "../include/Tools.h"
+#include "../include/GUIConstants.h"
 
 namespace Tool {
-	Manager& Manager::GetInstance() {
-		static Manager instance;
+	Manager* Manager::GetInstance() {
+		static Manager* instance = nullptr;
+		static bool is_called_first_time = true;
+		if (is_called_first_time) {
+			is_called_first_time = false;
+			instance = new Manager();
+		 	instance->Init();
+		}
 	  return instance;
+	}
+
+  Manager::Manager()
+  : thickness_(3),
+    color_(kBlack) {}
+
+	void Manager::Init() {
+		char temp[100] = {};
+		sprintf(temp, "%s/%s", kPluginsDirName, "Plugin.so");
+		plugin_lib_ = dlopen(temp, RTLD_NOW);
+		assert(plugin_lib_ != nullptr);
+		Plugin::CreateFunction Create = (Plugin::CreateFunction)dlsym(plugin_lib_, "Create");
+		assert(Create != nullptr);
+		plugin_ = Create(nullptr);
+		tools_ = plugin_->GetTools();
+		tools_.push_front(new Eraser());
+		tools_.push_front(new Pencil());
+		cur_tool_ = *tools_.begin();
+	}
+
+	Manager::~Manager() {
+		$;
+		for (auto t : tools_) delete t;
+		Plugin::DestroyFunction Destroy = (Plugin::DestroyFunction)dlsym(plugin_lib_, "Destroy");
+		assert(Destroy != nullptr);
+		Destroy(plugin_);
+		$$;
 	}
 
 	void Manager::ActionBegin(Plugin::ITexture* canvas, Point2D<int> point) {
@@ -23,7 +59,8 @@ namespace Tool {
 	}
 
 	uint Manager::GetColor() {
-		return ::GetColor(color_);
+		uint res = ::GetColor(color_);
+		return res;
 	}
 
 	std::list<Plugin::ITool*>& Manager::GetToolsList() {
@@ -38,24 +75,15 @@ namespace Tool {
 		cur_tool_ = tool;
 	}
 
-	Manager::~Manager() {
-		for (auto t : tools_) delete t;
-	}
-
-  Manager::Manager()
-  : thickness_(3),
-    color_(kBlack),
-    tools_({new Pencil(), new Eraser()}) {}
-
  	Pencil::Pencil()
  	: manager_(Manager::GetInstance()) {}
 
   void Pencil::ActionBegin(Plugin::ITexture* canvas, int x, int y) {
-  	canvas->DrawCircle(x, y, manager_.GetThickness(), manager_.GetColor());
+  	canvas->DrawCircle(x, y, manager_->GetThickness(), manager_->GetColor());
   }
 
   void Pencil::Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) {
-  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_.GetThickness(), manager_.GetColor());
+  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_->GetThickness(), manager_->GetColor());
   }
 
   void Pencil::ActionEnd(Plugin::ITexture* canvas, int x, int y) {}
@@ -72,11 +100,11 @@ namespace Tool {
  	: manager_(Manager::GetInstance()) {}
 
   void Eraser::ActionBegin(Plugin::ITexture* canvas, int x, int y) {
-  	canvas->DrawCircle(x, y, manager_.GetThickness(), 0);
+  	canvas->DrawCircle(x, y, manager_->GetThickness(), 0);
   }
 
   void Eraser::Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) {
-  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_.GetThickness(), 0);
+  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_->GetThickness(), 0xFFFFFFFF);
   }
 
   void Eraser::ActionEnd(Plugin::ITexture* canvas, int x, int y) {}

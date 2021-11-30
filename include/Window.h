@@ -4,8 +4,8 @@
 #include <vector>
 #include "main.h"
 #include "List.h"
-#include "ActionFunctors.h"
 #include "SystemEvents.h"
+#include "ActionFunctors.h"
 
 namespace Listener {
   class Abstract {
@@ -27,29 +27,41 @@ namespace Listener {
     Widget::Drag* widget_drag_;
   };
 
-  class ButtonClick : public Abstract {
+  class BasicButtonClick : public Abstract {
    public:
-    ButtonClick() = delete;
-    ButtonClick(Functor::Abstract* action_func, Widget::Button* button);
-    ~ButtonClick() override = default;
+    BasicButtonClick() = delete;
+    BasicButtonClick(Functor::Abstract* action_func, Widget::BasicButton* button);
+    ~BasicButtonClick() override = default;
 
     void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
     Functor::Abstract* action_func_;
-    Widget::Button* button_;
+    Widget::BasicButton* button_;
   };
 
-  class ButtonHover : public Abstract {
+  class BasicButtonHover : public Abstract {
    public:
-    ButtonHover() = delete;
-    ButtonHover(Widget::Button* button);
-    ~ButtonHover() override = default;
+    BasicButtonHover() = delete;
+    BasicButtonHover(Widget::BasicButton* button);
+    ~BasicButtonHover() override = default;
 
     void ProcessSystemEvent(const SystemEvent& event) override;
 
    private:
-    Widget::Button* button_;
+    Widget::BasicButton* button_;
+  };
+
+  class ButtonOnPress : public Abstract {
+   public:
+    ButtonOnPress() = delete;
+    ButtonOnPress(Widget::ButtonOnPress* button);
+    ~ButtonOnPress() override = default;
+
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+   private:
+    Widget::ButtonOnPress* button_;
   };
 
   class Canvas : public Abstract {
@@ -65,8 +77,20 @@ namespace Listener {
    private:
     Widget::Canvas* canvas_;
     PluginTexture* painting_area_;
-    Tool::Manager& manager_;
+    Tool::Manager* manager_;
     bool is_in_action_;
+  };
+
+  class DropdownList : public Abstract {
+   public:
+    DropdownList() = delete;
+    DropdownList(UserWidget::DropdownList* list);
+    ~DropdownList() override = default;
+
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+   private:
+    UserWidget::DropdownList* list_;
   };
 }
 
@@ -106,7 +130,7 @@ namespace Widget {
 
     void DeleteChildren();
     void DrawChildren();
-    List<Widget::Abstract*>& GetChildren();
+    std::list<Widget::Abstract*>& GetChildren();
     void AddChild(Widget::Abstract* widget);
     void PushMouseUpToChildInFocus(const SystemEvent& event);
     void PushMouseMotionToChildInFocus(const SystemEvent& event);
@@ -117,7 +141,7 @@ namespace Widget {
                       const Rectangle& bounds) override;
 
    protected:
-    List<Widget::Abstract*> children_;
+    std::list<Widget::Abstract*> children_;
   };
 
   class MainWindow : public AbstractContainer {
@@ -171,33 +195,62 @@ namespace Widget {
     Listener::Drag* drag_listener_;
   };
 
-  class Button : public Abstract {
-   public:
-    struct DrawFunctors {
-      DrawFunctor::Abstract* draw_func_main = nullptr;
-      DrawFunctor::Abstract* draw_func_hover = nullptr;
-      DrawFunctor::Abstract* draw_func_click = nullptr;
-    };
+  struct ButtonDrawFunctors {
+    DrawFunctor::Abstract* draw_func_main = nullptr;
+    DrawFunctor::Abstract* draw_func_hover = nullptr;
+    DrawFunctor::Abstract* draw_func_click = nullptr;
+  };
 
-    Button() = delete;
-    Button(const Rectangle& position,
-           Widget::MainWindow* main_window,
-           Functor::Abstract* action_func,
-           const DrawFunctors& draw_funcs);
-    ~Button() override;
+  class BasicButton : public Abstract {
+   public:
+    BasicButton() = delete;
+    BasicButton(const Rectangle& position,
+                Widget::MainWindow* main_window,
+                Functor::Abstract* action_func,
+                const ButtonDrawFunctors& draw_funcs);
+    ~BasicButton() override;
+
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+    friend Listener::BasicButtonClick;
+    friend Listener::BasicButtonHover;
+
+   protected:
+    Widget::MainWindow* main_window_;
+    Functor::Abstract* action_func_;
+    ButtonDrawFunctors draw_funcs_;
+    Listener::BasicButtonClick* click_listener_;
+    Listener::BasicButtonHover* hover_listener_;
 
     void StartListeningMouseUp();
     void StartListeningMouseMotion();
     void StopListeningMouseUp();
     void StopListeningMouseMotion();
+  };
+
+  class ButtonOnPress : public Abstract {
+   public:
+    ButtonOnPress() = delete;
+    ButtonOnPress(const Rectangle& position,
+                  Widget::MainWindow* main_window,
+                  Functor::Abstract* action_func,
+                  const ButtonDrawFunctors& draw_funcs);
+    ~ButtonOnPress() override;
+
     void ProcessSystemEvent(const SystemEvent& event) override;
+    void StopTheClick();
+
+    friend Listener::ButtonOnPress;
 
    protected:
     Widget::MainWindow* main_window_;
     Functor::Abstract* action_func_;
-    DrawFunctors draw_funcs_;
-    Listener::ButtonClick* click_listener_;
-    Listener::ButtonHover* hover_listener_;
+    ButtonDrawFunctors draw_funcs_;
+    Listener::ButtonOnPress* hover_listener_;
+    bool is_in_click_state_;
+
+    void StartListeningMouseMotion();
+    void StopListeningMouseMotion();
   };
 
   class Canvas : public Abstract {
@@ -252,8 +305,10 @@ namespace UserWidget {
 
     void CreatePalette(Widget::Container* palette, Render* render, uint palette_width,
                        const Point2D<int>& coord, Widget::MainWindow* main_window);
-    Widget::Button* CreateColorButton(Render* render, uint button_width,
-                                      const Point2D<int>& coord, Widget::MainWindow* main_window);
+    Widget::BasicButton* CreateColorButton(Render* render, uint button_width,
+                                           const Point2D<int>& coord, Widget::MainWindow* main_window);
+    Widget::BasicButton* CreatePickToolButton(Plugin::ITool* tool, Render* render, uint button_width,
+                                              const Point2D<int>& coord, Widget::MainWindow* main_window);
   };
 
   class HoleWindow : public Widget::Drag {
@@ -272,27 +327,90 @@ namespace UserWidget {
     bool IsInBound(const Point2D<int>& mouse_coord);
   };
 
-  class ButtonWithText : public Widget::Button {
+  struct ButtonDrawInfo {
+    Widget::ButtonDrawFunctors draw_funcs;
+    Render* render;
+    Color text_color;
+  };
+
+  class BasicButtonWithText : public Widget::BasicButton {
    public:
-    ButtonWithText() = delete;
-    ButtonWithText(const Rectangle& position,
-                   Widget::MainWindow* main_window,
-                   Functor::Abstract* action_func,
-                   const DrawFunctors& draw_funcs,
-                   const char* text,
-                   Render* render,
-                   const Color& color);
-    ButtonWithText(const Point2D<int>& position,
-                   Widget::MainWindow* main_window,
-                   Functor::Abstract* action_func,
-                   const DrawFunctors& draw_funcs,
-                   const char* text,
-                   Render* render,
-                   const Color& color);
-    ~ButtonWithText() override;
+    BasicButtonWithText() = delete;
+    BasicButtonWithText(const Rectangle& position,
+                        Widget::MainWindow* main_window,
+                        Functor::Abstract* action_func,
+                        const ButtonDrawInfo& button_draw_info,
+                        const char* text);
+
+    BasicButtonWithText(const Point2D<int>& position,
+                        Widget::MainWindow* main_window,
+                        Functor::Abstract* action_func,
+                        const ButtonDrawInfo& button_draw_info,
+                        const char* text);
+
+    ~BasicButtonWithText() override;
 
    protected:
     Texture* text_;
     DrawFunctor::TextTexture* draw_text_;
+  };
+
+  class ButtonOnPressWithText : public Widget::ButtonOnPress {
+   public:
+    ButtonOnPressWithText(const Point2D<int>& position,
+                          Widget::MainWindow* main_window,
+                          Functor::Abstract* action_func,
+                          const ButtonDrawInfo& button_draw_info,
+                          const char* text);
+
+    ~ButtonOnPressWithText() override;
+
+   protected:
+    Texture* text_;
+    DrawFunctor::TextTexture* draw_text_;
+  };
+
+  class DropdownList : public Widget::Abstract {
+   public:
+    struct ButtonInfo {
+      Functor::Abstract* func;
+      const char* text;
+    };
+
+    DropdownList() = delete;
+    DropdownList(const Point2D<int>& position,
+                 Widget::MainWindow* main_window,
+                 Widget::AbstractContainer* window_parent,
+                 Widget::ButtonOnPress* button_toggler,
+                 uint button_width,
+                 uint button_height,
+                 const std::initializer_list<ButtonInfo>& buttons,
+                 const ButtonDrawInfo& button_draw_info);
+    ~DropdownList();
+
+    void PopUp();
+    void Hide();
+    Point2D<int> Move(const Point2D<int>& shift,
+                      const Rectangle& bounds) override;
+    void Draw() override;
+    void ProcessSystemEvent(const SystemEvent& event) override;
+
+    friend Listener::DropdownList;
+    friend Functor::DropdownListClose;
+
+   private:
+    Widget::MainWindow* main_window_;
+    Widget::AbstractContainer* window_parent_;
+    Widget::ButtonOnPress* button_toggler_;
+    uint button_width_;
+    uint button_height_;
+    ButtonDrawInfo button_draw_info_;
+    std::vector<BasicButtonWithText*> button_list_;
+    bool is_visible_;
+    Listener::DropdownList* hover_listener_;
+    Functor::DropdownListClose* func_;
+
+    void StartListeningMouseMotion();
+    void StopListeningMouseMotion();
   };
 }

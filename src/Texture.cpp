@@ -3,9 +3,7 @@
 #include <unistd.h>
 #include "../include/Render.h"
 #include "../include/Texture.h"
-
-const char* kSkinsDirName = "skins";
-const uint kTextOfs = 3;
+#include "../include/GUIConstants.h"
 
 bool IsFileExists(const char* name) {
 	return access(name, F_OK) == 0;
@@ -50,8 +48,9 @@ Texture::Texture(const char* text, Render* render, const Color& color)
 	SDL_QueryTexture(text_texture, NULL, NULL, &w, &h);
 	assert(w >= 0);
 	assert(h >= 0);
-	width_  = (uint)w + kTextOfs * 2;
-	height_ = (uint)h + kTextOfs * 2;
+	width_  = (uint)w;
+	height_ = (uint)h;
+	assert(height_ == kFontHeight); // just for debug, can be easily removed
 
 	texture_ = SDL_CreateTexture(render_->render_,
 		                           SDL_PIXELFORMAT_RGBA8888,
@@ -60,8 +59,8 @@ Texture::Texture(const char* text, Render* render, const Color& color)
 	SDL_SetTextureBlendMode(texture_, SDL_BLENDMODE_BLEND);
 
 	SDL_SetRenderTarget(render_->render_, texture_);
-	SDL_Rect dest = {kTextOfs, kTextOfs, w, h};
-  SDL_RenderCopy(render_->render_, text_texture, nullptr, &dest);
+	// SDL_Rect dest = {kTextOfs, kTextOfs, w, h};
+  SDL_RenderCopy(render_->render_, text_texture, nullptr, nullptr);
   SDL_DestroyTexture(text_texture);
 }
 
@@ -171,6 +170,7 @@ void Texture::DrawThickLine(const Point2D<int>& coord1,
 
 void Texture::DrawCircle(Point2D<int> center, uint radius,
 	                       const Color& color) {
+	$;
   int signed_radius = (int)radius;
   uint radius_squared = radius * radius;
 
@@ -181,11 +181,13 @@ void Texture::DrawCircle(Point2D<int> center, uint radius,
     	DrawPoint(Point2D<int>{x + center.x, -y + center.y}, color);
     }
   }
+  $$;
 }
 
 void Texture::DrawRect(const Rectangle& position,
                        const Color& color) {
 	SDL_SetRenderTarget(render_->render_, texture_);
+  SDL_SetRenderDrawBlendMode(render_->render_, SDL_BLENDMODE_BLEND);
   SDL_SetRenderDrawColor(render_->render_, color.red, color.green, color.blue, color.alpha);
 	SDL_Rect dst = {position.corner.x, position.corner.y, (int)position.width, (int)position.height};
 	SDL_RenderFillRect(render_->render_, &dst);

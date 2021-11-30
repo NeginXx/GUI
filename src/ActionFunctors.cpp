@@ -1,4 +1,5 @@
 #include "../include/Window.h"
+#include "../include/GUIConstants.h"
 // #include "../include/ActionCommands.h"
 
 // Widget::Canvas* CreateStandardCanvas(Widget::MainWindow* main_window,
@@ -7,21 +8,26 @@
 
 namespace DrawFunctor {
 	TilingTexture::TilingTexture(Texture* texture,
-		                                     const Rectangle& relative_drawing_coord)
-	: texture_(texture), relative_drawing_coord_(relative_drawing_coord) {}
+		                           const Point2D<uint>& offset)
+	: texture_(texture), offset_(offset) {}
 
-	bool IsRelativeDrawingCoordDefault(const Rectangle& coord) {
-		return coord.corner.x == 0 && coord.corner.y == 0 &&
-			     coord.width == 0 && coord.height == 0;
+	bool IsOffsetDefault(const Point2D<uint>& coord) {
+		return coord.x == 0 && coord.y == 0;
+	}
+
+	void ChangePlaceToDrawIfNeeded(Rectangle* place, const Point2D<uint>& offset) {
+		if (!IsOffsetDefault(offset)) {
+	  	place->corner += Point2D<int>(offset);
+	  	assert(place->width >= 2 * offset.x);
+	  	assert(place->height >= 2 * offset.y);
+	  	place->width -= 2 * offset.x;
+	  	place->height -= 2 * offset.y;
+	  }
 	}
 
  	void TilingTexture::Action(const Rectangle& place_to_draw) {
 	  Rectangle place = place_to_draw;
-	  if (!IsRelativeDrawingCoordDefault(relative_drawing_coord_)) {
-	  	place.corner += relative_drawing_coord_.corner;
-	  	place.width = relative_drawing_coord_.width;
-	  	place.height = relative_drawing_coord_.height;
-	  }
+	  ChangePlaceToDrawIfNeeded(&place, offset_);
 
 		Point2D<int> max_c = Point2D<int>{place.corner.x + (int)place.width, place.corner.y + (int)place.height};
 		Point2D<int> cur_c = place.corner;
@@ -36,41 +42,35 @@ namespace DrawFunctor {
 	}
 
 	ScalableTexture::ScalableTexture(Texture* texture,
-		                               const Rectangle& relative_drawing_coord)
-	: texture_(texture), relative_drawing_coord_(relative_drawing_coord) {}
+		                               const Point2D<uint>& offset)
+	: texture_(texture), offset_(offset) {}
 
  	void ScalableTexture::Action(const Rectangle& place_to_draw) {
  		Rectangle place = place_to_draw;
- 	  if (!IsRelativeDrawingCoordDefault(relative_drawing_coord_)) {
-	  	place.corner += relative_drawing_coord_.corner;
-	  	place.width = relative_drawing_coord_.width;
-	  	place.height = relative_drawing_coord_.height;
-	  }
+ 	  ChangePlaceToDrawIfNeeded(&place, offset_);
  		texture_->Draw(nullptr, &place);
  	}
 
 	TextTexture::TextTexture(Texture* text,
-		                       const Rectangle& relative_drawing_coord)
-	: text_(text), relative_drawing_coord_(relative_drawing_coord) {}
+		                       const Point2D<uint>& offset)
+	: text_(text), offset_(offset) {}
 
  	void TextTexture::Action(const Rectangle& place_to_draw) {
  		Rectangle place = place_to_draw;
- 	  if (!IsRelativeDrawingCoordDefault(relative_drawing_coord_)) {
-	  	place.corner += relative_drawing_coord_.corner;
-	  	place.width = relative_drawing_coord_.width;
-	  	place.height = relative_drawing_coord_.height;
-	  }
+ 	  ChangePlaceToDrawIfNeeded(&place, offset_);
 	  place.width = Min(place.width, text_->GetWidth());
 	  place.height = Min(place.height, text_->GetHeight());
  		text_->Draw(nullptr, &place);
  	}
 
- 	MultipleFunctors::MultipleFunctors(std::initializer_list<DrawFunctor::Abstract*> list)
+ 	MultipleFunctors::MultipleFunctors(const std::initializer_list<DrawFunctor::Abstract*>& list)
  	: draw_functors_list_(list) {}
 
  	void MultipleFunctors::Action(const Rectangle& place_to_draw) {
  		for (auto func : draw_functors_list_) {
- 			func->Action(place_to_draw);
+ 			if (func != nullptr) {
+ 				func->Action(place_to_draw);
+ 			}
  		}
  	}
 }
@@ -108,32 +108,27 @@ namespace Functor {
 
   void CloseWidget::Action() {
     $;
-  	List<Widget::Abstract*>& children = window_parent_->GetChildren();
-  	bool is_deleted = false;
-  	for (auto child = children.begin(); child != children.end(); ++child) {
+  	std::list<Widget::Abstract*>& children = window_parent_->GetChildren();
+  	auto child = children.begin();
+  	for (; child != children.end(); ++child) {
   		if (*child == widget_to_close_) {
-  			children.Pop(child);
-        delete widget_to_close_;
-  			is_deleted = true;
   			break;
   		}
   	}
-  	if (!is_deleted) {
+  	if (child == children.end()) {
   		printf("Warning: Close was called but didn't close anything\n");
+  		return;
   	}
+  	children.erase(child);
+  	delete widget_to_close_;
     $$;
   }
 
- 	OpenFile::OpenFile(Widget::MainWindow* main_window)
- 	: main_window_(main_window) {}
+  OpenHoleWindow::OpenHoleWindow(Widget::MainWindow* main_window, Render* render)
+ 	: main_window_(main_window), render_(render) {}
 
- 	void OpenFile::SetMainWindow(Widget::MainWindow* main_window) {
- 		main_window_ = main_window;
- 	}
-
-  void OpenFile::Action() {
-  	printf("OpenFile action!\n");
-  	// Widget::BasicWindow* window = CreateStandardWindow(main_window_, {{100, 100}, 400, 300});
+  void OpenHoleWindow::Action() {
+  	auto hole_window = new UserWidget::HoleWindow({{0, kStandardTitlebarHeight}, 510, 700}, main_window_, render_);
   }
 
   OpenCanvas::OpenCanvas(Widget::MainWindow* main_window, Render* render)
@@ -151,15 +146,46 @@ namespace Functor {
  	: tool_(tool) {}
 
   void SetTool::Action() {
-  	static Tool::Manager& manager = Tool::Manager::GetInstance();
-  	manager.SetCurrentTool(tool_);
+  	Tool::Manager* manager = Tool::Manager::GetInstance();
+  	manager->SetCurrentTool(tool_);
   }
   
  	PickColor::PickColor(const Color& color)
  	: color_(color) {}
 
   void PickColor::Action() {
-  	Tool::Manager& manager = Tool::Manager::GetInstance();
-  	manager.SetColor(color_);
+  	Tool::Manager* manager = Tool::Manager::GetInstance();
+  	manager->SetColor(color_);
+  }
+
+ 	DropdownListPopUp::DropdownListPopUp(UserWidget::DropdownList* list)
+ 	: list_(list) {}
+
+ 	void DropdownListPopUp::SetDropdownList(UserWidget::DropdownList* list) {
+ 		list_ = list;
+ 	}
+
+  void DropdownListPopUp::Action() {
+  	list_->PopUp();
+  }
+
+ 	DropdownListClose::DropdownListClose(UserWidget::DropdownList* list)
+ 	: list_(list) {}
+
+  void DropdownListClose::Action() {
+    list_->is_visible_ = false;
+    std::list<Widget::Abstract*>& children = list_->window_parent_->GetChildren();
+    auto it = children.begin();
+    for (; it != children.end(); ++it) {
+      if (*it == list_) {
+        break;
+      }
+    }
+    if (it == children.end()) {
+      printf("Warning: DropdownList::Hide was called but worked inproperly\n");
+      return;
+    }
+    children.erase(it);
+    list_->button_toggler_->StopTheClick();
   }
 }

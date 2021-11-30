@@ -1,11 +1,11 @@
 #pragma once
 #include "main.h"
-#include "../include/Plugin.h"
+#include "../plugins_src/Plugin.h"
 
 namespace Tool {
 	class Manager {
 	 public:
-	  static Manager& GetInstance();
+	  static Manager* GetInstance();
 	  void ActionBegin(Plugin::ITexture* canvas, Point2D<int> point);
     void Action(Plugin::ITexture* canvas, Point2D<int> prev_point, Point2D<int> diff);
     void ActionEnd(Plugin::ITexture* canvas, Point2D<int> point);
@@ -19,10 +19,13 @@ namespace Tool {
 	 private:
 	 	uint thickness_;
 	 	Color color_;
-	 	Plugin::ITool* cur_tool_;
 	 	std::list<Plugin::ITool*> tools_;
+	 	Plugin::ITool* cur_tool_;
+	 	void* plugin_lib_;
+	 	Plugin::IPlugin* plugin_;
 
 	  Manager();
+	  void Init();
 	  Manager(const Manager&) = delete;
 	  Manager& operator=(const Manager&) = delete;
 	  Manager(Manager&&) = delete;
@@ -40,7 +43,7 @@ namespace Tool {
 	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
 
 	 private:
-	 	Manager& manager_;
+	 	Manager* manager_;
 	};
 
 	class Eraser : public Plugin::ITool {
@@ -54,6 +57,6 @@ namespace Tool {
 	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
 
 	 private:
-	 	Manager& manager_;
+	 	Manager* manager_;
 	};
 }
