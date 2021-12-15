@@ -129,9 +129,9 @@ struct IPlugin {
   virtual std::list<ITool*>   GetTools () const = 0;
 };
     
-typedef IPlugin* (*CreateFunction) (IAPI* api);
-typedef void     (*DestroyFunction)(IPlugin* plugin);
-typedef uint32_t (*VersionFunction)();
+typedef IPlugin*(*CreateFunction)(IAPI* api);
+typedef void    (*DestroyFunction)(IPlugin* plugin);
+typedef uint32_t(*VersionFunction)();
 
 } // namespace plugin
 

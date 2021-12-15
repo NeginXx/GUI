@@ -1,1 +1,1 @@
-clang++ -shared Plugin.cpp -o Plugin.so -fPIC
+clang++ -shared DrawSquaresPlugin.cpp -o ../plugins/DrawSquaresPlugin.so -fPIC

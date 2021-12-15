@@ -1,39 +1,24 @@
 #include <SDL2/SDL.h>
 #include <math.h>
 #include <time.h>
-#include <queue>
 #include "../include/main.h"
 #include "../include/Render.h"
 #include "../include/GLWindow.h"
-#include "../include/List.h"
 #include "../include/SystemEvents.h"
 #include "../include/Texture.h"
-#include "../include/Window.h"
-#include "../include/FunctorQueue.h"
-#include "../include/GUIConstants.h"
+#include "../include/Widget.h"
+#include "../include/DropdownList.h"
+#include "../include/Plugin.h"
+#include "../include/Canvas.h"
 
 // Declaring textures and draw functors
-#define DEFINE_SKIN(Scalability, Name, file_name)                \
-  extern Texture* kTexture##Name;                                \
-  extern DrawFunctor::Scalability##Texture* kFuncDraw##Name;     \
-  extern DrawFunctor::MultipleFunctors* kFuncDraw##Name##Framed; \
+#define DEFINE_SKIN(Scalability, Name, file_name)         \
+  Texture* kTexture##Name;                                \
+  DrawFunctor::Scalability##Texture* kFuncDraw##Name;     \
+  DrawFunctor::MultipleFunctors* kFuncDraw##Name##Framed; \
   DrawFunctor::Scalability##Texture* kFuncDraw##Name##Auxiliary;
   #include "../include/DEFINE_SKIN.h"
 #undef DEFINE_SKIN
-
-// extern Widget::Canvas* CreateCanvas(Widget::Window* parent,
-//                                     const Rectangle& pos,
-//                                     Render* render) {
-//   Widget::Window* window = CreateStandardWindow(parent, pos);
-//   Texture* texture = new Texture(1848, 1016, render);
-//   texture->SetBackgroundColor({0, 0, 0});
-//   CanvasFunctor* canvas_func = new CanvasFunctor(render, texture, 1, 1);
-//   Widget::Canvas* canvas = new Widget::Canvas({ {kResizeWidgetOfs, kResizeWidgetOfs + kStandardTitlebarHeight}, pos.width - 2 * kResizeWidgetOfs,
-//                               pos.height - 2 * kResizeWidgetOfs - kStandardTitlebarHeight },
-//                               canvas_func);
-//   window->AddChild(canvas);
-//   return canvas;
-// }
 
 class MainBar : public Widget::Container {
  public:
@@ -63,7 +48,7 @@ class MainBar : public Widget::Container {
     new UserWidget::ButtonOnPressWithText({0, 0}, main_window, func_, {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra},
                                           render, kWhite}, "File");
     dropdown_list_ =
-    new UserWidget::DropdownList({0, kStandardTitlebarHeight}, main_window, main_window,
+    new UserWidget::DropdownList(main_window, main_window,
                                  some_button, 200, kStandardTitlebarHeight, {{func_open_canvas_, "Open canvas"}, {func_open_hole_window_, "Open hole window"}},
                                  {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra}, render, kWhite});
     func_->SetDropdownList(dropdown_list_);
@@ -79,9 +64,12 @@ class MainBar : public Widget::Container {
   UserWidget::DropdownList* dropdown_list_;
 };
 
+Plugin::API* kApi;
+MainBar* kMainBar;
+
 void RunApp(GLWindow* gl_window, Render* render) {
   // Initializing textures and draw functors
-  Texture* kTextureFrame = new Texture("tex_main_dark.png", render);
+  Texture* kTextureFrame = new Texture("tex_black.png", render);
   DrawFunctor::Abstract* kFuncDrawFrame = new DrawFunctor::ScalableTexture(kTextureFrame);
   #define DEFINE_SKIN(Scalability, Name, file_name)  \
     kTexture##Name = new Texture(file_name, render); \
@@ -97,7 +85,8 @@ void RunApp(GLWindow* gl_window, Render* render) {
   const uint gl_window_height = gl_window->GetHeight();
 
   auto main_window = new Widget::MainWindow({{0, 0}, gl_window_width, gl_window_height}, {}, kFuncDrawTexMainLight);
-  auto main_bar = new MainBar(main_window, render, gl_window_width);
+  kApi = new Plugin::API(main_window, render);
+  kMainBar = new MainBar(main_window, render, gl_window_width);
   // auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window, render);
   // auto hole_window = new UserWidget::HoleWindow({{-500, kStandardTitlebarHeight}, 510, 700}, main_window, render);
 
@@ -109,13 +98,9 @@ void RunApp(GLWindow* gl_window, Render* render) {
 
   // -----------------------------------------------
 
-  // Texture tex(10, 10, render, {0, 0, 0, 0});
-  // tex.DrawLine({1, 1}, {8, 1}, kBlack);
-  // tex.DrawLine({1, 8}, {8, 8}, kBlack);
-  // tex.DrawLine({1, 1}, {1, 8}, kBlack);
-  // tex.DrawLine({8, 1}, {8, 8}, kBlack);
-  // tex.DrawPoint({8, 8}, kBlack);
-  // tex.SaveToPNG("square_tool");
+  // Texture tex(1920, 1080, render, kBlack);
+  // tex.SaveToPNG("tex_black");
+
 
   SystemEvent event = {};
   bool is_running = true;
@@ -152,6 +137,7 @@ void RunApp(GLWindow* gl_window, Render* render) {
       Functor::Abstract* func = queue.Pop();
       func->Action();
     }
+    // SDL_Delay(200);
 
     // DelayIfNeeded(time1, SDL_GetTicks());
     // printf("fps = %u\n", (uint)(1 / ((float)(SDL_GetTicks() - time1) / 1000)));
@@ -170,3 +156,5 @@ void RunApp(GLWindow* gl_window, Render* render) {
     #include "../include/DEFINE_SKIN.h"
   #undef DEFINE_SKIN
 }
+
+// 0x6080001ddea0

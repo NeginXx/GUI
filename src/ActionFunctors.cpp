@@ -1,10 +1,8 @@
-#include "../include/Window.h"
+#include "../include/Widget.h"
 #include "../include/GUIConstants.h"
-// #include "../include/ActionCommands.h"
-
-// Widget::Canvas* CreateStandardCanvas(Widget::MainWindow* main_window,
-//                                      const Rectangle& pos,
-//                                      Render* render);
+#include "../include/Canvas.h"
+#include "../include/DropdownList.h"
+#include "../include/Plugin.h"
 
 namespace DrawFunctor {
 	TilingTexture::TilingTexture(Texture* texture,
@@ -54,6 +52,10 @@ namespace DrawFunctor {
 	TextTexture::TextTexture(Texture* text,
 		                       const Point2D<uint>& offset)
 	: text_(text), offset_(offset) {}
+
+	void TextTexture::SetTexture(Texture* texture) {
+		text_ = texture;
+	}
 
  	void TextTexture::Action(const Rectangle& place_to_draw) {
  		Rectangle place = place_to_draw;
@@ -139,17 +141,9 @@ namespace Functor {
  	}
 
   void OpenCanvas::Action() {
-  	auto canvas = new UserWidget::PaintWindow({{100, 100}, 1000, 700}, main_window_, render_);
+  	auto canvas = new UserWidget::PaintWindow({{350, 150}, 1200, 700}, main_window_, render_);
   }
 
- 	SetTool::SetTool(Plugin::ITool* tool)
- 	: tool_(tool) {}
-
-  void SetTool::Action() {
-  	Tool::Manager* manager = Tool::Manager::GetInstance();
-  	manager->SetCurrentTool(tool_);
-  }
-  
  	PickColor::PickColor(const Color& color)
  	: color_(color) {}
 
@@ -187,5 +181,22 @@ namespace Functor {
     }
     children.erase(it);
     list_->button_toggler_->StopTheClick();
+  }
+
+ 	void Scroll::SetScrollPos(float new_scroll_pos) {
+ 		assert(new_scroll_pos >= 0.0f);
+ 		assert(new_scroll_pos <= 1.0f);
+ 		scroll_pos_ = new_scroll_pos;
+ 	}
+
+ 	void Scroll::SetScrollType(ScrollType type) {
+ 		scroll_type_ = type;
+ 	}
+
+ 	ScrollCanvas::ScrollCanvas(Widget::Canvas* canvas)
+ 	: Scroll(), canvas_(canvas) {}
+
+  void ScrollCanvas::Action() {
+  	canvas_->ChangeViewPos(scroll_pos_, scroll_type_);
   }
 }

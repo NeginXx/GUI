@@ -1,6 +1,6 @@
 #pragma once
 #include "main.h"
-#include "../plugins_src/Plugin.h"
+#include "IPlugin.h"
 
 namespace Tool {
 	class Manager {
@@ -12,6 +12,7 @@ namespace Tool {
 	  uint GetThickness();
 	  uint GetColor();
 	  std::list<Plugin::ITool*>& GetToolsList();
+	  std::list<Plugin::IFilter*>& GetFiltersList();
 	  void SetColor(const Color& color);
 	  void SetCurrentTool(Plugin::ITool* tool);
   	~Manager();
@@ -20,6 +21,7 @@ namespace Tool {
 	 	uint thickness_;
 	 	Color color_;
 	 	std::list<Plugin::ITool*> tools_;
+	 	std::list<Plugin::IFilter*> filters_;
 	 	Plugin::ITool* cur_tool_;
 	 	void* plugin_lib_;
 	 	Plugin::IPlugin* plugin_;

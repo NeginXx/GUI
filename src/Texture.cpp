@@ -71,6 +71,7 @@ Texture::Texture(uint width, uint height, Render* render, const Color& color)
 		                           SDL_PIXELFORMAT_RGBA8888,
 		                           SDL_TEXTUREACCESS_TARGET,
 		                           width, height);
+
 	SDL_SetTextureBlendMode(texture_, SDL_BLENDMODE_BLEND);
 	SetBackgroundColor(color);
 	// texture_ = SDL_CreateTexture(render->render_,
@@ -132,10 +133,11 @@ void Texture::Draw(const Rectangle* src,
 	SDL_RenderCopy(render_->render_, texture_, src_ptr, dest_ptr);
 }
 
-void Texture::DrawWithNoScale(const Rectangle* dest) {
-	Rectangle src = { {0, 0}, Min(width_, dest->width),
-	                  Min(height_, dest->height) };
-	this->Draw(&src, dest);
+void Texture::DrawWithNoScale(const Rectangle* dest,
+	                            const Point2D<int>& src) {
+	Rectangle srcc = { src, Min(width_, dest->width),
+	                   Min(height_, dest->height) };
+	this->Draw(&srcc, dest);
 }
 
 void Texture::DrawLine(const Point2D<int>& coord1,
@@ -151,6 +153,7 @@ void Texture::DrawThickLine(const Point2D<int>& coord1,
                             const Point2D<int>& coord2,
                             uint thickness,
                             const Color& color) {
+  SDL_SetRenderDrawBlendMode(render_->render_, SDL_BLENDMODE_BLEND);
 	SDL_SetRenderTarget(render_->render_, texture_);
 	SDL_SetRenderDrawColor(render_->render_, color.red, color.green, color.blue, color.alpha);
 

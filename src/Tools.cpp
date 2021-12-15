@@ -2,6 +2,9 @@
 #include <dlfcn.h>
 #include "../include/Tools.h"
 #include "../include/GUIConstants.h"
+#include "../include/Plugin.h"
+
+extern Plugin::API* kApi;
 
 namespace Tool {
 	Manager* Manager::GetInstance() {
@@ -21,25 +24,26 @@ namespace Tool {
 
 	void Manager::Init() {
 		char temp[100] = {};
-		sprintf(temp, "%s/%s", kPluginsDirName, "Plugin.so");
+		sprintf(temp, "%s/%s", kPluginsDirName, "DrawSquaresPlugin.so");
 		plugin_lib_ = dlopen(temp, RTLD_NOW);
 		assert(plugin_lib_ != nullptr);
 		Plugin::CreateFunction Create = (Plugin::CreateFunction)dlsym(plugin_lib_, "Create");
 		assert(Create != nullptr);
-		plugin_ = Create(nullptr);
+		plugin_ = Create(kApi);
 		tools_ = plugin_->GetTools();
-		tools_.push_front(new Eraser());
 		tools_.push_front(new Pencil());
+		tools_.push_front(new Eraser());
 		cur_tool_ = *tools_.begin();
+
+		filters_ = plugin_->GetFilters();
 	}
 
 	Manager::~Manager() {
-		$;
-		for (auto t : tools_) delete t;
+		delete *tools_.begin();
+		delete *++tools_.begin();
 		Plugin::DestroyFunction Destroy = (Plugin::DestroyFunction)dlsym(plugin_lib_, "Destroy");
 		assert(Destroy != nullptr);
 		Destroy(plugin_);
-		$$;
 	}
 
 	void Manager::ActionBegin(Plugin::ITexture* canvas, Point2D<int> point) {
@@ -65,6 +69,10 @@ namespace Tool {
 
 	std::list<Plugin::ITool*>& Manager::GetToolsList() {
 		return tools_;
+	}
+
+	std::list<Plugin::IFilter*>& Manager::GetFiltersList() {
+		return filters_;
 	}
 
 	void Manager::SetColor(const Color& color) {

@@ -3,7 +3,7 @@ Compiler = clang++
 Flags = -std=c++17 -O2 -Wall \
 -Wextra -Wpedantic -Wno-unused-parameter \
 -Wno-dollar-in-identifier-extension     \
--Wno-unused-variable -Wno-switch -fsanitize=address -g
+-Wno-unused-variable -Wno-switch -g -fsanitize=address
 
 CXXFLAGS = $(Flags) -I/usr/include/SDL2
 LXXFLAGS = -lSDL2 -lSDL2_ttf -lSDL2_image -fsanitize=address

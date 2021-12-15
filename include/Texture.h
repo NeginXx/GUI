@@ -1,6 +1,11 @@
 #pragma once
+#include "main.h"
 class Render;
 class SDL_Texture;
+
+namespace Plugin {
+  class Texture;
+}
 
 class Texture {
  public:
@@ -13,7 +18,8 @@ class Texture {
   void CopyTexture(const Texture& texture, const Rectangle* dst);
   void Draw(const Rectangle* src,
             const Rectangle* dst);
-  void DrawWithNoScale(const Rectangle* dst);
+  void DrawWithNoScale(const Rectangle* dst,
+                       const Point2D<int>& src = {});
   void DrawLine(const Point2D<int>& coordinates1,
                 const Point2D<int>& coordinates2,
                 const Color& color = {});
@@ -35,6 +41,7 @@ class Texture {
   uint GetWidth() const;
   uint GetHeight() const;
  	friend class Render;
+  friend class Plugin::Texture;
 
  private:
  	SDL_Texture* texture_;

@@ -1,6 +1,8 @@
 #include <queue>
-#include "../include/Window.h"
+#include <iostream>
+#include "../include/Widget.h"
 #include "../include/FunctorQueue.h"
+#include "../include/Skins.h"
 
 namespace Listener {
   Drag::Drag(Functor::MoveWidget* move_func, Widget::Drag* widget_drag)
@@ -56,65 +58,6 @@ namespace Listener {
       button_->StopListeningMouseMotion();
     }
   }
-
-  Canvas::Canvas(Widget::Canvas* canvas,
-                 PluginTexture* painting_area,
-                 Point2D<uint> coord)
-  : canvas_(canvas),
-    painting_area_(painting_area),
-    manager_(Tool::Manager::GetInstance()),
-    is_in_action_(true) {
-      $;
-      manager_->ActionBegin(painting_area_, Point2D<int>(coord) - canvas_->GetPosition().corner);
-      $$;
-    }
-
-  void Canvas::ProcessSystemEvent(const SystemEvent& event) {
-    $;
-    switch (event.type) {
-      case SystemEvent::kMouseButtonUp: {
-        manager_->ActionEnd(painting_area_, Point2D<int>(event.info.mouse_click.coordinate));
-        canvas_->FinishPainting();
-        break;
-      }
-
-      case SystemEvent::kMouseMotion: {
-        Point2D<int> old_mp = Point2D<int>(event.info.mouse_motion.old_mouse_pos);
-        Point2D<int> new_mp = Point2D<int>(event.info.mouse_motion.new_mouse_pos);
-        if (!canvas_->IsMouseCoordinatesInBound(Point2D<uint>(new_mp))) {
-          if (is_in_action_) {
-            manager_->ActionEnd(painting_area_, old_mp);
-            is_in_action_ = false;
-          }
-          break;
-        }
-
-        if (!is_in_action_) {
-          manager_->ActionBegin(painting_area_, new_mp);
-          is_in_action_ = true;
-        }
-
-        const Point2D<int>& canvas_pos = canvas_->GetPosition().corner;
-        manager_->Action(painting_area_, old_mp - canvas_pos, new_mp - old_mp);
-        break;
-      }
-
-      default: assert(0);
-    }
-    $$;
-  }
-
-  DropdownList::DropdownList(UserWidget::DropdownList* list)
-  : list_(list) {}
-
-  void DropdownList::ProcessSystemEvent(const SystemEvent& event) {
-    assert(event.type == SystemEvent::kMouseMotion);
-    Point2D<uint> mc = event.info.mouse_motion.new_mouse_pos;
-    if (!list_->IsMouseCoordinatesInBound(mc) &&
-        !list_->button_toggler_->IsMouseCoordinatesInBound(mc)) {
-      list_->StopListeningMouseMotion();
-    }
-  }
 }
 
 namespace Widget {
@@ -131,6 +74,10 @@ namespace Widget {
 
   Rectangle Abstract::GetPosition() {
     return position_;
+  }
+
+  void Abstract::SetPosition(const Rectangle& pos) {
+    position_ = pos;
   }
 
   void Abstract::SetDrawFunc(DrawFunctor::Abstract* draw_func) {
@@ -233,7 +180,6 @@ namespace Widget {
       for (auto it = children_.rbegin(); it != children_.rend(); ++it) {
         (*it)->Draw();
       }
-      (*children_.begin())->Draw();
     }
   }
 
@@ -530,6 +476,10 @@ namespace Widget {
     click_listener_(nullptr),
     hover_listener_(nullptr) {}
 
+  ButtonDrawFunctors BasicButton::GetDrawFuncs() {
+    return draw_funcs_;
+  }
+
   void BasicButton::StartListeningMouseUp() {
     click_listener_ = new Listener::BasicButtonClick(action_func_, this);
     main_window_->AddListener(SystemEvent::kMouseButtonUp, click_listener_);
@@ -562,6 +512,10 @@ namespace Widget {
     if (draw_func_ == draw_funcs_.draw_func_hover) {
       draw_func_ = draw_funcs_.draw_func_main;
     }
+  }
+
+  void BasicButton::Action() {
+    FunctorQueue::GetInstance().Push(action_func_);
   }
 
   void BasicButton::ProcessSystemEvent(const SystemEvent& event) {
@@ -656,71 +610,15 @@ namespace Widget {
     draw_func_ = draw_funcs_.draw_func_main;
     is_in_click_state_ = false;
   }
-
-
-
-  // Canvas
-  // -----------------------------------------------------
-  // -----------------------------------------------------
-  // -----------------------------------------------------
-  // -----------------------------------------------------
-  // -----------------------------------------------------
-  Canvas::Canvas(const Rectangle& position,
-                 Widget::MainWindow* main_window,
-                 Render* render)
-  : Abstract(position, nullptr),
-    main_window_(main_window),
-    painting_listener_(nullptr)
-    {
-      painting_area_ = new PluginTexture(1900, 1100, render, {0, 0, 0, 0});
-    }
-
-  Canvas::~Canvas() {
-    $;
-    if (painting_listener_ != nullptr) {
-      FinishPainting();
-    }
-    delete painting_area_;
-    $$;
-  }
-
-  void Canvas::StartPainting(Point2D<uint> coordinate) {
-    assert((int)coordinate.x >= position_.corner.x);
-    assert((int)coordinate.y >= position_.corner.y);
-    painting_listener_ = new Listener::Canvas(this, painting_area_, coordinate);
-    main_window_->AddListener(SystemEvent::kMouseMotion, painting_listener_);
-    main_window_->AddListener(SystemEvent::kMouseButtonUp, painting_listener_);
-  }
-
-  void Canvas::FinishPainting() {
-    main_window_->DeleteListener(SystemEvent::kMouseMotion, painting_listener_);
-    main_window_->DeleteListener(SystemEvent::kMouseButtonUp, painting_listener_);
-    delete painting_listener_;
-    painting_listener_ = nullptr;
-  }
-
-  void Canvas::ProcessSystemEvent(const SystemEvent& event) {
-    switch (event.type) {
-      case SystemEvent::kMouseButtonDown: {
-        StartPainting(event.info.mouse_click.coordinate);
-        break;
-      }
-    }
-  }
-
-  void Canvas::Draw() {
-    painting_area_->Draw(position_);
-  }
 }
-
-#include "../include/GUIConstants.h"
-#include "../include/Skins.h"
 
 namespace UserWidget {
   StandardWindow::StandardWindow(const Rectangle& pos,
                                  Widget::MainWindow* main_window)
-  : Container(pos, {}, kFuncDrawTexWhite)
+  : Container({pos.corner - Point2D<int>{(int)kStandardResizeOfs, (int)kStandardResizeOfs},
+              pos.width + 2 * kStandardResizeOfs, pos.height + 2 * kStandardResizeOfs}, {}, kFuncDrawTexBlack)
   {
+    AddChild(new Container(pos, {}, kFuncDrawTexMain));
     func_close_widget_ = new Functor::CloseWidget(nullptr, nullptr);
     func_move_ = new Functor::MoveWidget(nullptr, kStandardMoveBounds);
 
@@ -729,15 +627,15 @@ namespace UserWidget {
     const int x = pos.corner.x;
     const int y = pos.corner.y;
 
-    auto button_close =
+    button_close_ =
     new Widget::BasicButton({{(int)pos.width - (int)kStandardButtonWidth - 2 * (int)button_ofs + x, (int)button_ofs + y}, kStandardButtonWidth , kStandardButtonWidth},
-                       main_window, func_close_widget_, {kFuncDrawButtonCloseNormal, kFuncDrawButtonCloseHover});
+                            main_window, func_close_widget_, {kFuncDrawButtonCloseNormal, kFuncDrawButtonCloseHover});
 
     auto title_bar =
     new Widget::Drag({{x, y}, pos.width, kStandardTitlebarHeight}, main_window,
-                     {button_close}, func_move_, kFuncDrawTexStriped);
+                     {button_close_}, func_move_, kFuncDrawTexMain);
 
-    children_.push_front(title_bar);
+    AddChild(title_bar);
 
     func_close_widget_->SetWidgetToClose(this);
     func_close_widget_->SetWindowParent(main_window);
@@ -750,94 +648,8 @@ namespace UserWidget {
     delete func_move_;
   }
 
-  Widget::BasicButton* PaintWindow::CreateColorButton(Render* render, uint button_width,
-                                                 const Point2D<int>& coord, Widget::MainWindow* main_window) {
-    Color color = {(unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256)};
-    auto texture_color = new Texture(button_width, button_width, render, color);
-    textures_to_free_.push_back(texture_color);
-    assert(button_width > 10);
-    auto func_draw_color = new DrawFunctor::ScalableTexture(texture_color, {5, 5});
-    auto func_draw_color_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, func_draw_color});
-    draw_funcs_to_free_.push_back(func_draw_color);
-    draw_funcs_to_free_.push_back(func_draw_color_hover);
-
-    auto func_pick_color = new Functor::PickColor(color);
-    pick_color_funcs_to_free_.push_back(func_pick_color);
-    return new Widget::BasicButton({coord, button_width, button_width},
-                              main_window, func_pick_color, {func_draw_color, func_draw_color_hover});
-  }
-
-  Widget::BasicButton* PaintWindow::CreatePickToolButton(Plugin::ITool* tool, Render* render, uint button_width,
-                                                    const Point2D<int>& coord, Widget::MainWindow* main_window) {
-    static char buf[100] = {};
-    sprintf(buf, "tools/%s", tool->GetIconFileName());
-    auto texture = new Texture(buf, render);
-    auto func_draw_texture = new DrawFunctor::ScalableTexture(texture);
-    auto func_draw_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, func_draw_texture});
-    auto func_set_tool = new Functor::SetTool(tool);
-    auto pick_tool_button = new Widget::BasicButton({{coord.x, coord.y}, button_width, button_width},
-                                               main_window, func_set_tool, {func_draw_texture, func_draw_hover});
-
-    textures_to_free_.push_back(texture);
-    draw_funcs_to_free_.push_back(func_draw_texture);
-    draw_funcs_to_free_.push_back(func_draw_hover);
-    set_tool_funcs_to_free_.push_back(func_set_tool);
-
-    return pick_tool_button;
-  }
-
-  void PaintWindow::CreatePalette(Widget::Container* palette, Render* render, uint palette_width,
-                                  const Point2D<int>& coord, Widget::MainWindow* main_window) {
-    const uint button_width = kStandardButtonWidth + 10;
-    const uint ofs = (palette_width - 2 * button_width) / 2;
-    int x = coord.x + ofs;
-    int cur_y = coord.y + ofs;
-
-    ::Tool::Manager* manager = ::Tool::Manager::GetInstance();
-    std::list<Plugin::ITool*>& tools = manager->GetToolsList();
-    size_t i = 0;
-    for (auto tool : tools) {
-      int temp_x = x;
-      if (i % 2 == 1) {
-        temp_x += button_width;
-      }
-      palette->AddChild(CreatePickToolButton(tool, render, button_width,
-                                             Point2D<int>{temp_x, cur_y}, main_window));
-      if (i++ % 2 == 1) {
-        cur_y += button_width;
-      }
-    }
-
-    for (size_t i = 0; i < 10; ++i) {
-      cur_y += button_width;
-      palette->AddChild(CreateColorButton(render, button_width, {x, cur_y}, main_window));
-      palette->AddChild(CreateColorButton(render, button_width, {x + (int)button_width, cur_y}, main_window));
-    }
-  }
-
-  PaintWindow::PaintWindow(const Rectangle& pos,
-                           Widget::MainWindow* main_window,
-                           Render* render)
-  : StandardWindow(pos, main_window)
-  {
-    const int x = pos.corner.x;
-    const int y = pos.corner.y;
-    assert(pos.width >= 50);
-    const uint palette_width = 100;
-    auto canvas = new Widget::Canvas({{x + (int)palette_width, y + (int)kStandardTitlebarHeight}, pos.width - palette_width, pos.height - kStandardTitlebarHeight},
-                                     main_window, render);
-    auto palette = new Widget::Container({{x, (int)(y + kStandardTitlebarHeight)}, palette_width, pos.height - kStandardTitlebarHeight},
-                                         {}, kFuncDrawTexStripedLight);
-    CreatePalette(palette, render, palette_width, {x, y + (int)kStandardTitlebarHeight}, main_window);
-    AddChild(canvas);
-    AddChild(palette);
-  }
-
-  PaintWindow::~PaintWindow() {
-    for (auto t : textures_to_free_) delete t;
-    for (auto f : draw_funcs_to_free_) delete f;
-    for (auto f : pick_color_funcs_to_free_) delete f;
-    for (auto f : set_tool_funcs_to_free_) delete f;
+  void StandardWindow::Close() {
+    button_close_->Action();
   }
 
   HoleWindow::HoleWindow(const Rectangle& position,
@@ -963,106 +775,28 @@ namespace UserWidget {
     #undef DELETE_DF
   }
 
-  DropdownList::DropdownList(const Point2D<int>& position,
-                             Widget::MainWindow* main_window,
-                             Widget::AbstractContainer* window_parent,
-                             Widget::ButtonOnPress* button_toggler,
-                             uint button_width,
-                             uint button_height,
-                             const std::initializer_list<ButtonInfo>& buttons,
-                             const ButtonDrawInfo& button_draw_info)
-  : Abstract({position, button_width, button_height * (uint)buttons.size()}, nullptr),
-    main_window_(main_window),
-    window_parent_(window_parent),
-    button_toggler_(button_toggler),
-    button_width_(button_width),
-    button_height_(button_height),
-    button_draw_info_(button_draw_info),
-    is_visible_(false),
-    hover_listener_(nullptr),
-    func_(new Functor::DropdownListClose(this))
+  Label::Label(const Point2D<int>& position,
+               const char* text,
+               Render* render,
+               const Color& color)
+  : Abstract({position, 0, kFontHeight + 2 * kTextHeightOfs}, nullptr),
+    render_(render),
+    text_(new Texture(text, render_, color)),
+    draw_text_(new DrawFunctor::TextTexture(text_, {kTextWidthOfs, kTextHeightOfs}))
   {
-    int x = position.x;
-    int cur_y = position.y;
-    for (auto button : buttons) {
-      auto b = new BasicButtonWithText({{x, cur_y}, button_width, button_height},
-                                       main_window_, button.func, button_draw_info_,
-                                       button.text);
-      button_list_.push_back(b);
-      cur_y += button_height_;
-    }
+    position_.width = text_->GetWidth() + 2 * kTextWidthOfs;
+    draw_func_ = draw_text_;
   }
 
-  DropdownList::~DropdownList() {
-    for (auto button : button_list_) {
-      delete button;
-    }
-    if (hover_listener_ != nullptr) {
-      main_window_->DeleteListener(SystemEvent::kMouseButtonUp, hover_listener_);
-      delete hover_listener_;
-    }
-    delete func_;
+  void Label::SetText(const char* text) {
+    delete text_;
+    text_ = new ::Texture(text, render_, kWhite);
+    position_.width = text_->GetWidth() + 2 * kTextWidthOfs;
+    draw_text_->SetTexture(text_);
   }
 
-  void DropdownList::StartListeningMouseMotion() {
-    hover_listener_ = new Listener::DropdownList(this);
-    main_window_->AddListener(SystemEvent::kMouseMotion, hover_listener_);
-  }
-
-  void DropdownList::StopListeningMouseMotion() {
-    main_window_->DeleteListener(SystemEvent::kMouseMotion, hover_listener_);
-    delete hover_listener_;
-    hover_listener_ = nullptr;
-    Hide();
-  }
-
-  void DropdownList::PopUp() {
-    if (!is_visible_) {
-      window_parent_->AddChild(this);
-      is_visible_ = true;
-    }
-  }
-
-  void DropdownList::Hide() {
-    if (is_visible_) {
-      FunctorQueue::GetInstance().Push(func_);
-    }
-  }
-
-  void DropdownList::ProcessSystemEvent(const SystemEvent& event) {
-    switch (event.type) {
-      case SystemEvent::kMouseButtonDown: {
-        Point2D<int> mc = static_cast<Point2D<int>>(event.info.mouse_click.coordinate);
-        Hide();
-        button_list_[(mc.y - position_.corner.y) / button_height_]->ProcessSystemEvent(event);
-        break;
-      }
-
-      case SystemEvent::kMouseMotion: {
-        Point2D<int> mc = static_cast<Point2D<int>>(event.info.mouse_motion.new_mouse_pos);
-        uint idx = Min((uint)button_list_.size() - 1, (uint)(mc.y - position_.corner.y) / button_height_);
-        button_list_[idx]->ProcessSystemEvent(event);
-        if (hover_listener_ == nullptr) {
-          StartListeningMouseMotion();
-        } // else it's already processed by listener
-      }
-    }
-  }
-
-  Point2D<int> DropdownList::Move(const Point2D<int>& shift,
-                                  const Rectangle& bounds) {
-    Point2D<int> real_shift = this->Abstract::Move(shift, bounds);
-    if (real_shift.x != 0 || real_shift.y == 0) {
-      for (auto button : button_list_) {
-        button->Move(real_shift, bounds);
-      }
-    }
-    return real_shift;
-  }
-
-  void DropdownList::Draw() {
-    for (auto button : button_list_) {
-      button->Draw();
-    }
+  Label::~Label() {
+    delete text_;
+    delete draw_text_;
   }
 }

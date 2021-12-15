@@ -8,6 +8,10 @@ class SDL_Texture;
 class SDL_Surface;
 class _TTF_Font;
 
+namespace Plugin {
+  class Texture;
+}
+
 class Render {
  public:
  	Render(const GLWindow& window);
@@ -23,6 +27,7 @@ class Render {
   ~Render();
 
   friend class Texture;
+  friend class Plugin::Texture;
 
  private:
  	SDL_Renderer* render_ = nullptr;

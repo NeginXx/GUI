@@ -1,9 +1,8 @@
 #pragma once
 #include "main.h"
-#include "Window.h"
 #include "Texture.h"
-#include "PluginTexture.h"
 #include "Tools.h"
+#include "List.h"
 
 namespace Widget {
   class Abstract;
@@ -13,12 +12,21 @@ namespace Widget {
   class Drag;
   class BasicButton;
   class ButtonOnPress;
+  class Scroll;
   class Canvas;
-  class DropdownList;
 }
+
+enum ScrollType {
+  kHorizontal,
+  kVertical
+};
 
 namespace UserWidget {
 	class DropdownList;
+}
+
+namespace Plugin {
+  class PreferencesPanel;
 }
 
 namespace DrawFunctor {
@@ -36,7 +44,7 @@ namespace DrawFunctor {
 
 	 	void Action(const Rectangle& place_to_draw) override;
 
-	 private:
+	 protected:
 	 	Texture* texture_;
 	 	Point2D<uint> offset_;
 	};
@@ -49,7 +57,7 @@ namespace DrawFunctor {
 
 	 	void Action(const Rectangle& place_to_draw) override;
 
-	 private:
+	 protected:
 	 	Texture* texture_;
 	 	Point2D<uint> offset_;
 	};
@@ -61,8 +69,9 @@ namespace DrawFunctor {
 	 		          const Point2D<uint>& offset = {});
 
 	 	void Action(const Rectangle& place_to_draw) override;
+	 	void SetTexture(Texture* texture);
 
-	 private:
+	 protected:
 	 	Texture* text_;
 	 	Point2D<uint> offset_;
 	};
@@ -96,7 +105,7 @@ namespace Functor {
 	 	void Action() override;
 	 	void SetShift(const Point2D<int>& shift);
 
-	 private:
+	 protected:
 	 	Widget::Abstract* widget_to_move_;
   	Rectangle widget_bounds_;
   	Point2D<int> shift_;
@@ -112,7 +121,7 @@ namespace Functor {
 	 	void SetWindowParent(Widget::AbstractContainer* window_parent);
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	Widget::Abstract* widget_to_close_;
 	 	Widget::AbstractContainer* window_parent_;
 	};
@@ -125,7 +134,7 @@ namespace Functor {
 	  void SetMainWindow(Widget::MainWindow* main_window);
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	Widget::MainWindow* main_window_;
 	 	Render* render_;
 	};
@@ -137,20 +146,9 @@ namespace Functor {
 
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	Widget::MainWindow* main_window_;
 	 	Render* render_;
-	};
-
-	class SetTool : public Abstract {
-	 public:
-	 	SetTool() = delete;
-	 	SetTool(Plugin::ITool* tool);
-
-	  void Action() override;
-
-	 private:
-	 	Plugin::ITool* tool_;
 	};
 
 	class PickColor : public Abstract {
@@ -160,7 +158,7 @@ namespace Functor {
 
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	Color color_;
 	};
 
@@ -172,7 +170,7 @@ namespace Functor {
 	 	void SetDropdownList(UserWidget::DropdownList* list);
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	UserWidget::DropdownList* list_;
 	};
 
@@ -183,7 +181,29 @@ namespace Functor {
 
 	  void Action() override;
 
-	 private:
+	 protected:
 	 	UserWidget::DropdownList* list_;
+	};
+
+	class Scroll : public Abstract {
+	 public:
+	 	Scroll() = default;
+	 	void SetScrollPos(float new_scroll_pos);
+	 	void SetScrollType(ScrollType type);
+
+	 protected:
+	 	float scroll_pos_;
+	 	ScrollType scroll_type_;
+	};
+
+	class ScrollCanvas : public Scroll {
+	 public:
+	 	ScrollCanvas() = delete;
+	 	ScrollCanvas(Widget::Canvas* canvas);
+
+	  void Action() override;
+
+	 protected:
+	 	Widget::Canvas* canvas_;
 	};
 }

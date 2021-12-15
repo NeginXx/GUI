@@ -151,23 +151,23 @@ class List {
     --size_;
   }
 
-  void Dump() const {
-    printf("List dump:\n");
-    printf("---------------------\n");
-    printf("size = %lu\n", size_);
-    Node* cur_node = head_;
-    while (cur_node != nullptr) {
-      printf("prev = %p\n", cur_node->prev);
-      printf("node = %p\n", cur_node);
-      printf("val = %p\n", cur_node->val);
-      printf("next = %p\n", cur_node->next);
-      cur_node = cur_node->next;
-      if (cur_node != nullptr) {
-        printf("\n");
-      }
-    }
-    printf("---------------------\n");
-  }
+  // void Dump() const {
+  //   printf("List dump:\n");
+  //   printf("---------------------\n");
+  //   printf("size = %lu\n", size_);
+  //   Node* cur_node = head_;
+  //   while (cur_node != nullptr) {
+  //     printf("prev = %p\n", cur_node->prev);
+  //     printf("node = %p\n", cur_node);
+  //     printf("val = %p\n", cur_node->val);
+  //     printf("next = %p\n", cur_node->next);
+  //     cur_node = cur_node->next;
+  //     if (cur_node != nullptr) {
+  //       printf("\n");
+  //     }
+  //   }
+  //   printf("---------------------\n");
+  // }
 
  private:
   Node* head_;
