@@ -94,6 +94,16 @@ namespace Widget {
     DrawFunctor::Abstract* draw_func_;
   };
 
+  class Icon : public Abstract {
+   public:
+    Icon() = delete;
+    Icon(const Rectangle& position,
+         DrawFunctor::Abstract* draw_func)
+    : Abstract(position, draw_func) {}
+
+    void ProcessSystemEvent(const SystemEvent& event) override {}
+  };
+
   class AbstractContainer : public Abstract {
    public:
     AbstractContainer() = delete;

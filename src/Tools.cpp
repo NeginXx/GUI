@@ -30,12 +30,30 @@ namespace Tool {
 		Plugin::CreateFunction Create = (Plugin::CreateFunction)dlsym(plugin_lib_, "Create");
 		assert(Create != nullptr);
 		plugin_ = Create(kApi);
-		tools_ = plugin_->GetTools();
+
+		Plugin::Tools tools_temp = plugin_->GetTools();
+		for (uint i = 0; i < tools_temp.count; ++i) {tools_.push_front(tools_temp.tools[i]);}
 		tools_.push_front(new Pencil());
 		tools_.push_front(new Eraser());
 		cur_tool_ = *tools_.begin();
 
-		filters_ = plugin_->GetFilters();
+		Plugin::Filters f_temp = plugin_->GetFilters();
+		for (uint i = 0; i < f_temp.count; ++i) {filters_.push_front(f_temp.filters[i]);}
+
+
+		memset(temp, 0, sizeof(temp));
+		sprintf(temp, "%s/%s", kPluginsDirName, "Blur.so");
+		plugin_lib_ = dlopen(temp, RTLD_NOW);
+		assert(plugin_lib_ != nullptr);
+		Plugin::CreateFunction Create1 = (Plugin::CreateFunction)dlsym(plugin_lib_, "Create");
+		assert(Create1 != nullptr);
+		plugin_ = Create1(kApi);
+
+		Plugin::Tools tools_temp1 = plugin_->GetTools();
+		for (uint i = 0; i < tools_temp1.count; ++i) {tools_.push_front(tools_temp1.tools[i]);}
+
+		Plugin::Filters f_temp1 = plugin_->GetFilters();
+		for (uint i = 0; i < f_temp1.count; ++i) {filters_.push_front(f_temp1.filters[i]);}
 	}
 
 	Manager::~Manager() {
@@ -77,6 +95,20 @@ namespace Tool {
 
 	void Manager::SetColor(const Color& color) {
 		color_ = color;
+		Plugin::WidgetFactory* w_f = dynamic_cast<Plugin::WidgetFactory*>(kApi->GetWidgetFactory());
+		std::vector<Plugin::Palette*> palettes = w_f->GetPalettes();
+		for (auto p : palettes) {
+			assert(p->callback_ != nullptr);
+
+			uint r = (uint)color.red;
+      uint g = (uint)color.green;
+      uint b = (uint)color.blue;
+      uint a = (uint)color.alpha;
+      uint res = (r << 24) + (g << 16) + (b << 8) + a;
+
+      printf("res = %u\n", res);
+			p->callback_->RespondOnChangeColor(res);
+		}
 	}
 
 	void Manager::SetCurrentTool(Plugin::ITool* tool) {
@@ -87,11 +119,11 @@ namespace Tool {
  	: manager_(Manager::GetInstance()) {}
 
   void Pencil::ActionBegin(Plugin::ITexture* canvas, int x, int y) {
-  	canvas->DrawCircle(x, y, manager_->GetThickness(), manager_->GetColor());
+  	canvas->DrawCircle({x, y, manager_->GetThickness(), 0, manager_->GetColor(), 0});
   }
 
   void Pencil::Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) {
-  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_->GetThickness(), manager_->GetColor());
+  	canvas->DrawLine({x, y, x + dx, y + dy, manager_->GetThickness(), manager_->GetColor()});
   }
 
   void Pencil::ActionEnd(Plugin::ITexture* canvas, int x, int y) {}
@@ -108,11 +140,11 @@ namespace Tool {
  	: manager_(Manager::GetInstance()) {}
 
   void Eraser::ActionBegin(Plugin::ITexture* canvas, int x, int y) {
-  	canvas->DrawCircle(x, y, manager_->GetThickness(), 0);
+  	canvas->DrawCircle({x, y, manager_->GetThickness(), 0, 0xFFFFFFFF, 0});
   }
 
   void Eraser::Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) {
-  	canvas->DrawThickLine(x, y, x + dx, y + dy, manager_->GetThickness(), 0xFFFFFFFF);
+  	canvas->DrawLine({x, y, x + dx, y + dy, manager_->GetThickness(), 0xFFFFFFFF});
   }
 
   void Eraser::ActionEnd(Plugin::ITexture* canvas, int x, int y) {}

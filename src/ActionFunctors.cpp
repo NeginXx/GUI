@@ -148,8 +148,10 @@ namespace Functor {
  	: color_(color) {}
 
   void PickColor::Action() {
+  	$;
   	Tool::Manager* manager = Tool::Manager::GetInstance();
   	manager->SetColor(color_);
+  	$$;
   }
 
  	DropdownListPopUp::DropdownListPopUp(UserWidget::DropdownList* list)

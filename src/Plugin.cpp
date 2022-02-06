@@ -15,11 +15,11 @@ namespace Plugin {
   Texture::Texture(const char* image_name, Render* render)
   : texture_(image_name, render) {}
 
-  int Texture::GetWidth() {
+  uint Texture::GetWidth() {
   	return texture_.GetWidth();
   }
 
-  int Texture::GetHeight() {
+  uint Texture::GetHeight() {
   	return texture_.GetHeight();
   }
 
@@ -28,46 +28,55 @@ namespace Plugin {
     SDL_SetRenderTarget(render_->render_, texture_.texture_);
     assert(!SDL_RenderReadPixels(render_->render_, NULL, SDL_PIXELFORMAT_RGBA8888,
                                  buffer, GetWidth() * sizeof(Color)));
+    // for (uint y = 0; y < GetHeight(); ++y) {
+    //   for (uint x = 0; x < GetWidth(); ++x) {
+    //     uint p = buffer[y * GetHeight() + x];
+    //     buffer[y * GetHeight() + x] = InvertttColor(p);
+    //   }
+    // }
     return {buffer, this};
-  }
-
-  void Texture::LoadBuffer(Buffer buffer) {
-    assert(!SDL_UpdateTexture(texture_.texture_, NULL, buffer.pixels, GetWidth() * sizeof(Color)));
   }
 
   void Texture::ReleaseBuffer(Buffer buffer) {
     delete[] buffer.pixels;
   }
 
-  void Texture::Clear(Plugin::Color color) {
+  void Texture::LoadBuffer(Buffer buffer) {
+    // for (uint y = 0; y < GetHeight(); ++y) {
+    //   for (uint x = 0; x < GetWidth(); ++x) {
+    //     uint p = buffer.pixels[y * GetHeight() + x];
+    //     buffer.pixels[y * GetHeight() + x] = InvertColor(p);
+    //   }
+    // }
+    assert(!SDL_UpdateTexture(texture_.texture_, NULL, buffer.pixels, GetWidth() * sizeof(Color)));
+  }
+
+  void Texture::Clear(Color color) {
     texture_.SetBackgroundColor(GetColor(color));
   }
 
-  void Texture::DrawLine(int x0, int y0, int x1, int y1, Plugin::Color color) {
-    texture_.DrawLine(Point2D<int>{x0, y0}, Point2D<int>{x1, y1}, GetColor(color));
+  void Texture::DrawLine(const Line& line) {
+    texture_.DrawThickLine(Point2D<int>{line.x0, line.y0},
+                           Point2D<int>{line.x1, line.y1},
+                           line.thickness,
+                           GetColor(line.color));
   }
 
-  void Texture::DrawThickLine(int x0, int y0, int x1, int y1, int thickness, Plugin::Color color) {
-    assert(thickness >= 0);
-    texture_.DrawThickLine(Point2D<int>{x0, y0}, Point2D<int>{x1, y1}, (uint)thickness, GetColor(color));
+  void Texture::DrawCircle(const Circle& circle) {
+    texture_.DrawCircle(Point2D<int>{circle.x, circle.y}, circle.radius, GetColor(circle.fill_color));
   }
 
-  void Texture::DrawCircle(int x, int y, int radius, Plugin::Color color) {
-    assert(radius >= 0);
-    texture_.DrawCircle(Point2D<int>{x, y}, (uint)radius, GetColor(color));
+  void Texture::DrawRect(const Rect& rect) {
+    texture_.DrawRect({{rect.x, rect.y}, rect.width, rect.height}, GetColor(rect.fill_color));
   }
 
-  void Texture::DrawRect(int x, int y, int width, int height, Plugin::Color color) {
-    assert(width >= 0);
-    assert(height >= 0);
-    texture_.DrawRect({{x, y}, (uint)width, (uint)height}, GetColor(color));
+  void Texture::CopyTexture(ITexture* source, int x, int y, uint width, uint height) {
+    Rectangle dst = {{x, y}, width, height};
+    texture_.CopyTexture(dynamic_cast<Texture*>(source)->texture_, &dst);
   }
 
-  void Texture::CopyTexture(ITexture* texture, int x, int y, int width, int height) {
-    assert(width >= 0);
-    assert(height >= 0);
-    Rectangle dst = {{x, y}, (uint)width, (uint)height};
-    texture_.CopyTexture(dynamic_cast<Texture*>(texture)->texture_, &dst);
+  void Texture::CopyTexture(ITexture* source, int x, int y) {
+    CopyTexture(source, x, y, source->GetWidth(), source->GetHeight());
   }
 
   void Texture::Draw(const Rectangle& position, const Point2D<int>& src) {
@@ -81,7 +90,7 @@ namespace Plugin {
     return new Texture(filename, render_);
   }
 
-  ITexture* TextureFactory::CreateTexture(int32_t width, int32_t height) {
+  ITexture* TextureFactory::CreateTexture(uint width, uint height) {
     return new Texture(width, height, render_, {0, 0, 0, 0});
   }
 
@@ -98,11 +107,11 @@ namespace Plugin {
     callback_ = callback;
   }
 
-  int32_t Button::GetWidth() {
+  uint Button::GetWidth() {
     return position_.width;
   }
 
-  int32_t Button::GetHeight() {
+  uint Button::GetHeight() {
     return position_.height;
   }
 
@@ -176,11 +185,11 @@ namespace Plugin {
     position_.corner.x = bound0_ + (int)(pos * (float)(bound1_ - bound0_ - w));
   }
 
-  int32_t Slider::GetWidth() {
+  uint Slider::GetWidth() {
     return position_.width;
   }
 
-  int32_t Slider::GetHeight() {
+  uint Slider::GetHeight() {
     return position_.height;
   }
 
@@ -190,11 +199,11 @@ namespace Plugin {
                const ::Color& color)
   : UserWidget::Label(position, text, render, color) {}
 
-  int32_t Label::GetWidth() {
+  uint Label::GetWidth() {
     return position_.width;
   }
 
-  int32_t Label::GetHeight() {
+  uint Label::GetHeight() {
     return position_.height;
   }
 
@@ -202,10 +211,52 @@ namespace Plugin {
     UserWidget::Label::SetText(text);
   }
 
-  PreferencesPanel::PreferencesPanel(Widget::MainWindow* main_window)
-  : Widget::Container({{0, 0}, kPrefPanelWidth, kPrefPanelHeight}, {}, kFuncDrawTexMain) {}
+  Icon::Icon(Rectangle position)
+  : Widget::Icon(position, nullptr) {}
+  Icon::~Icon() { $;delete draw_func_;$$; }
 
-  void PreferencesPanel::Attach(IWidget* iwidget, int32_t x, int32_t y) {
+  void Icon::SetIcon(const ITexture* icon) {
+    $;
+    delete draw_func_;
+    ITexture* _icon = const_cast<ITexture*>(icon);
+    draw_func_ = new DrawFunctor::ScalableTexture(&(dynamic_cast<Texture*>(_icon)->texture_));
+    $$;
+  }
+
+  uint Icon::GetWidth() {
+    return position_.width;
+  }
+
+  uint Icon::GetHeight() {
+    return position_.height;
+  }
+
+  PreferencesPanel::PreferencesPanel(Widget::MainWindow* main_window,
+                                     WidgetFactory* widget_factory)
+  : Widget::Container({{0, 0}, kPrefPanelWidth, kPrefPanelHeight}, {}, kFuncDrawTexMain),
+    widget_factory_(widget_factory) {}
+
+  void PreferencesPanel::Attach(IButton*  button,  int x, int y) {
+    Attach(static_cast<IWidget*>(button), x, y);
+  }
+
+  void PreferencesPanel::Attach(ILabel*   label,   int x, int y) {
+    Attach(static_cast<IWidget*>(label), x, y);
+  }
+
+  void PreferencesPanel::Attach(ISlider*  slider,  int x, int y) {
+    Attach(static_cast<IWidget*>(slider), x, y);
+  }
+
+  void PreferencesPanel::Attach(IIcon*    icon,    int x, int y) {
+    Attach(static_cast<IWidget*>(icon), x, y);
+  }
+
+  void PreferencesPanel::Attach(IPalette* palette, int x, int y) {
+    widget_factory_->AddPalette(dynamic_cast<Palette*>(palette));
+  }
+
+  void PreferencesPanel::Attach(IWidget* iwidget, int x, int y) {
     Widget::Abstract* widget = dynamic_cast<Widget::Abstract*>(iwidget);
     assert(widget != nullptr);
     Rectangle pos = widget->GetPosition();
@@ -221,11 +272,11 @@ namespace Plugin {
     }
   }
 
-  int32_t PreferencesPanel::GetWidth() {
+  uint PreferencesPanel::GetWidth() {
     return position_.width;
   }
 
-  int32_t PreferencesPanel::GetHeight() {
+  uint PreferencesPanel::GetHeight() {
     return position_.height;
   }
 
@@ -236,14 +287,14 @@ namespace Plugin {
     return CreateButtonWithIcon(kDefaultButtonWidth, kDefaultButtonWidth, icon_file_name);
   }
 
-  IButton* WidgetFactory::CreateButtonWithIcon(int32_t width, int32_t height, const char* icon_file_name) {
+  IButton* WidgetFactory::CreateButtonWithIcon(uint width, uint height, const char* icon_file_name) {
     auto texture = new ::Texture(icon_file_name, render_);
     auto func_draw_texture = new DrawFunctor::TilingTexture(texture);
     auto func_draw_hover = new DrawFunctor::MultipleFunctors({kFuncDrawTexMainLightExtra, func_draw_texture});
     textures_to_free_.push_back(texture);
     draw_funcs_to_free_.push_back(func_draw_texture);
     draw_funcs_to_free_.push_back(func_draw_hover);
-    return new Button({{0, 0}, (uint)width, (uint)height}, main_window_, {func_draw_texture, func_draw_hover});
+    return new Button({{0, 0}, width, height}, main_window_, {func_draw_texture, func_draw_hover});
   }
 
   WidgetFactory::~WidgetFactory() {
@@ -262,8 +313,16 @@ namespace Plugin {
     return new Label({0, 0}, text, render_, kWhite);
   }
 
-  IPreferencesPanel* WidgetFactory::CreateDefaultPreferencesPanel() {
-    return new PreferencesPanel(main_window_);
+  IIcon* WidgetFactory::CreateIcon(uint width, uint height) {
+    return new Icon({{0, 0}, width, height});
+  }
+
+  IPalette* WidgetFactory::CreatePalette() {
+    return new Palette;
+  }
+
+  IPreferencesPanel* WidgetFactory::CreatePreferencesPanel() {
+    return new PreferencesPanel(main_window_, this);
   }
 
   API::API(Widget::MainWindow* main_window, Render* render)
@@ -277,26 +336,18 @@ namespace Plugin {
     return &t_factory_;
   }
 
-
-
-
-
-  
-
   IButton* WidgetFactory::CreateDefaultButtonWithText(const char* text) {
     assert(!"This function is yet to be implemented");
   }
-  IButton* WidgetFactory::CreateButtonWithText(int32_t width, int32_t height, const char* text, int32_t char_size) {
+  IButton* WidgetFactory::CreateButtonWithText(uint width, uint height, const char* text, uint char_size) {
     assert(!"This function is yet to be implemented");
   }
-  ISlider* WidgetFactory::CreateSlider(int32_t width, int32_t height, float range_min, float range_max) {
+  ISlider* WidgetFactory::CreateSlider(uint width, uint height, float range_min, float range_max) {
     assert(!"This function is yet to be implemented");
+    // CreateDefaultSlider(range_min, range_max);
   }
-
-  ISlider* WidgetFactory::CreateSlider(int32_t width, int32_t height, float thumb_width, float thumb_height, float range_min, float range_max) {
+  ILabel* WidgetFactory::CreateLabel(uint width, uint height, const char* text, uint char_size) {
     assert(!"This function is yet to be implemented");
-  }
-  ILabel* WidgetFactory::CreateLabel(int32_t width, int32_t height, const char* text, int32_t char_size) {
-    assert(!"This function is yet to be implemented");
+    // CreateDefaultLabel(text);
   }
 }

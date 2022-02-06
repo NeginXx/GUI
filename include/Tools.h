@@ -1,6 +1,7 @@
 #pragma once
 #include "main.h"
 #include "IPlugin.h"
+#include <list>
 
 namespace Tool {
 	class Manager {
@@ -42,6 +43,7 @@ namespace Tool {
 	  void Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) override;
 	  void ActionEnd(Plugin::ITexture* canvas, int x, int y) override;
 	  const char* GetIconFileName() const override;
+	  const char* GetName() const override {return "Pencil";}
 	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
 
 	 private:
@@ -56,6 +58,7 @@ namespace Tool {
 	  void Action(Plugin::ITexture* canvas, int x, int y, int dx, int dy) override;
 	  void ActionEnd(Plugin::ITexture* canvas, int x, int y) override;
 	  const char* GetIconFileName() const override;
+	  const char* GetName() const override {return "Eraser";}
 	  Plugin::IPreferencesPanel* GetPreferencesPanel()const override;
 
 	 private:

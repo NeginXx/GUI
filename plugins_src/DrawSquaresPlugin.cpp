@@ -6,8 +6,30 @@ const uint kSpacing = 7;
 
 namespace Plugin {
 
-uint kSettings[kSettingTypeSize] = {2, 0, 0, 0};
-uint kSettingsForFilling[kSettingTypeSize] = {2, 0, 0, 0};
+unsigned char kSettings[kSettingTypeSize] = {2, 0, 0, 0};
+unsigned char kSettingsForFilling[kSettingTypeSize] = {2, 0, 0, 0};
+
+class ChangeColorCallback : public IPaletteCallback {
+ public:
+  ChangeColorCallback() = default;
+  void RespondOnChangeColor(uint color) override {
+    unsigned char alpha = 0xFF;
+    unsigned char blue = (color & 0xFF00) >> 8;
+    unsigned char green = (color &  0xFF0000) >> 16;
+    unsigned char red =   (color & 0xFF000000) >> 24;
+    printf("red = %u\n", red);
+    printf("green = %u\n", green);
+    printf("blue = %u\n", blue);
+    kSettings[kRed] = red;
+    kSettings[kBlue] = blue;
+    kSettings[kGreen] = green;
+    kSettingsForFilling[kRed] = red;
+    kSettingsForFilling[kBlue] = blue;
+    kSettingsForFilling[kGreen] = green;
+  }
+};
+
+ChangeColorCallback kColorCallback;
 
 Functor::Functor(SettingType type, DrawRectsTool* tool)
 : type_(type), tool_(tool) {}
@@ -40,11 +62,11 @@ void DrawRectsTool::ActionBegin(ITexture* canvas, int x, int y) {
   uint width = kSettings[kSquareSize];
   int xx = x - width / 2;
   int yy = y - width / 2;
-  canvas->DrawRect(xx, yy, width, width, 0x000000FF);
+  canvas->DrawRect({xx, yy, width, width, 0, 0xFF000000, 0});
   uint blue = kSettings[kBlue];
   uint green = kSettings[kGreen];
   uint red = kSettings[kRed];
-  canvas->DrawRect(xx + 1, yy + 1, width - 2, width - 2, 0xFF + (blue << 8) + (green << 16) + (red << 24));
+  canvas->DrawRect({xx + 1, yy + 1, width - 2, width - 2, 0, red + (green << 8) + (blue << 16) + (0xFF << 24), 0});
 }
 
 void DrawRectsTool::Action(ITexture* canvas, int x, int y, int dx, int dy) {
@@ -86,11 +108,12 @@ uint DrawRectsTool::CreateSlider(IPreferencesPanel* pref_panel, int x, int y,
   pref_panel->Attach(button, 0, y + height);
   height += button->GetHeight();
 
+
   return height;
 }
 
 IPreferencesPanel* DrawRectsTool::GetPreferencesPanel() const {
-  IPreferencesPanel* pref_panel = widget_factory_->CreateDefaultPreferencesPanel();
+  IPreferencesPanel* pref_panel = widget_factory_->CreatePreferencesPanel();
   kPrefPanelWidth = pref_panel->GetWidth();
   int x = 0;
   int y = 0;
@@ -103,11 +126,15 @@ IPreferencesPanel* DrawRectsTool::GetPreferencesPanel() const {
     CREATE_SLIDER(y + height, "Green:", 0.0f, 255.0f, kGreen);
     CREATE_SLIDER(y + height, "Blue:", 0.0f, 255.0f, kBlue);
   #undef CREATE_SLIDER
+  IPalette* palette = widget_factory_->CreatePalette();
+  palette->SetPaletteCallback(&kColorCallback);
+  pref_panel->Attach(palette, 0, 0);
 	return pref_panel;
 }
 
 FillingTool::FillingTool(IAPI* api)
-: widget_factory_(api->GetWidgetFactory()) {}
+: widget_factory_(api->GetWidgetFactory()),
+  texture_factory_(api->GetTextureFactory()) {}
 
 FillingTool::~FillingTool() {
   for (auto f : funcs_to_free_) delete f;
@@ -123,7 +150,9 @@ void FillingTool::ActionBegin(ITexture* canvas, int xx, int yy) {
   uint blue = kSettingsForFilling[kBlue];
   uint green = kSettingsForFilling[kGreen];
   uint red = kSettingsForFilling[kRed];
-  Color color_to_draw = 0xFF + (blue << 8) + (green << 16) + (red << 24);
+  uint alpha = 0xFF;
+  // Color color_to_draw = red + (green << 8) + (blue << 16) + (alpha << 24);
+  Color color_to_draw = alpha + (blue << 8) + (green << 16) + (red << 24);
 
   int cnt = 0;
   for (int i = 0; i < width * height; ++i) {
@@ -134,6 +163,9 @@ void FillingTool::ActionBegin(ITexture* canvas, int xx, int yy) {
   }
   canvas->LoadBuffer(buffer);
   canvas->ReleaseBuffer(buffer);
+
+  ITexture* tex = texture_factory_->CreateTexture("photo.jpg"); ///////////////////////////////////
+  canvas->CopyTexture(tex, 0, 0);
 }
 
 const char* FillingTool::GetIconFileName() const {
@@ -175,7 +207,7 @@ uint FillingTool::CreateSlider(IPreferencesPanel* pref_panel, int x, int y,
 }
 
 IPreferencesPanel* FillingTool::GetPreferencesPanel() const {
-  IPreferencesPanel* pref_panel = widget_factory_->CreateDefaultPreferencesPanel();
+  IPreferencesPanel* pref_panel = widget_factory_->CreatePreferencesPanel();
   kPrefPanelWidth = pref_panel->GetWidth();
   int x = 0;
   int y = 0;
@@ -187,24 +219,31 @@ IPreferencesPanel* FillingTool::GetPreferencesPanel() const {
     CREATE_SLIDER(y + height, "Green:", 0.0f, 255.0f, kGreen);
     CREATE_SLIDER(y + height, "Blue:", 0.0f, 255.0f, kBlue);
   #undef CREATE_SLIDER
+  IPalette* palette = widget_factory_->CreatePalette();
+  palette->SetPaletteCallback(&kColorCallback);
+  pref_panel->Attach(palette, 0, 0);
   return pref_panel;
 }
 
-Color InvertColor(Color color) {
-  uint blue  = (color >> 8) & 0xFF;
-  uint green = (color >> 16) & 0xFF;
-  uint red   = (color >> 24) & 0xFF;
-  blue  = 255 - blue;
-  green = 255 - green;
-  red   = 255 - red;
-  return 0xFF + (blue << 8) + (green << 16) + (red << 24);
+Color InvertttColor(Color color) {
+  // uint alpha = color & 0xFF;
+  // uint blue = color & 0xFF00;
+  // uint green = color & 0xFF0000;
+  // uint red = color & 0xFF000000;
+  // red = 255 - red;
+  // green = 255 - green;
+  // blue = 255 - blue;
+  // alpha = 0xFF;
+  // return alpha + (blue << 8) + (green << 16) + (red << 24);
+  return (0xFF'FF'FF'FF - color) | 0x00'00'00'FF;
 }
 
 Color GradColor(Color color) {
-  uint blue  = (uint)pow((color >> 8) & 0xFF, 0.9);
-  uint green = (uint)pow((color >> 16) & 0xFF, 0.9);
-  uint red   = (uint)pow((color >> 24) & 0xFF, 0.9);
-  return 0xFF + (blue << 8) + (green << 16) + (red << 24);
+  uint red   = (uint)pow(color & 0xFF, 0.9);
+  uint green = (uint)pow((color >> 8) & 0xFF, 0.9);
+  uint blue  = (uint)pow((color >> 16) & 0xFF, 0.9);
+  uint alpha = 0xFF;
+  return alpha + (blue << 8) + (green << 16) + (red << 24);
 }
 
 FilterInverse::FilterInverse(IAPI* api)
@@ -217,7 +256,7 @@ void FilterInverse::Apply(ITexture* canvas) {
   int height = canvas->GetHeight();
 
   for (int i = 0; i < width * height; ++i) {
-    buf[i] = InvertColor(buf[i]);
+    buf[i] = InvertttColor(buf[i]);
   }
   canvas->LoadBuffer(buffer);
   canvas->ReleaseBuffer(buffer);
@@ -260,18 +299,32 @@ struct MyPlugin : public IPlugin {
   : draw_rects_tool_(new DrawRectsTool(api)),
     filling_tool_(new FillingTool(api)),
     filter_inverse_(new FilterInverse(api)),
-    filter_gradient_(new Gradient(api)) {}
+    filter_gradient_(new Gradient(api)),
+    tools_({draw_rects_tool_, filling_tool_}),
+    filters_({filter_inverse_, filter_gradient_}),
+    tools__(new ITool*[tools_.size()]),
+    filters__(new IFilter*[filters_.size()])
+  {
+    for (uint i = 0; i < tools_.size(); ++i) {
+      tools__[i] = tools_[i];
+    }
+    for (uint i = 0; i < filters_.size(); ++i) {
+      filters__[i] = filters_[i];
+    }
+  }
 
   ~MyPlugin() override {
     delete draw_rects_tool_;
+    delete[] tools__;
+    delete[] filters__;
   }
 
- 	std::list<IFilter*> GetFilters() const override {
- 		return {filter_inverse_, filter_gradient_};
+ 	Filters GetFilters() const override {
+    return {filters__, (uint)filters_.size()};
  	}
 
- 	std::list<ITool*> GetTools() const override {
- 		return {draw_rects_tool_, filling_tool_};
+ 	Tools GetTools() const override {
+ 		return {tools__, (uint)tools_.size()};
  	}
 
  private:
@@ -279,6 +332,10 @@ struct MyPlugin : public IPlugin {
   FillingTool* filling_tool_;
   FilterInverse* filter_inverse_;
   Gradient* filter_gradient_;
+  std::vector<ITool*> tools_;
+  std::vector<IFilter*> filters_;
+  ITool** tools__;
+  IFilter** filters__;
 };
 
 MyPlugin* kPlugin = nullptr;
@@ -292,8 +349,8 @@ extern "C" void Destroy(IPlugin* plugin) {
   delete kPlugin;
 }
 
-extern "C" uint32_t Version() {
-  return 1;
+extern "C" uint Version() {
+  return 2;
 }
 
 }

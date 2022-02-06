@@ -265,11 +265,11 @@ namespace UserWidget {
     auto some_button =
     new UserWidget::ButtonOnPressWithText({41, 0}, main_window, func, {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra},
                                           render, kWhite}, "Tools");
-    auto dropdown_list =
+    auto tools_list =
     new UserWidget::DropdownList(main_window, main_window,
-                                 some_button, 200, kStandardTitlebarHeight, {{new Functor::SetTool(this, *tools.begin(), main_window, nullptr), "Eraser"}, {new Functor::SetTool(this, *++tools.begin(), main_window, nullptr), "Pencil"}, {new Functor::SetTool(this, *++++tools.begin(), main_window, nullptr), "Tool1"}, {new Functor::SetTool(this, *++++++tools.begin(), main_window, nullptr), "Tool2"}},
+                                 some_button, 200, kStandardTitlebarHeight, {},
                                  {{kFuncDrawTexMainFramed, kFuncDrawTexMainDarkFramed, kFuncDrawTexMainDarkExtra}, render, kWhite});
-    func->SetDropdownList(dropdown_list);
+    func->SetDropdownList(tools_list);
     kMainBar->AddChild(some_button);
     int _width = some_button->GetPosition().width;
 
@@ -288,6 +288,7 @@ namespace UserWidget {
 
     uint i = 0;
     for (auto tool : tools) {
+      tools_list->AddButton({new Functor::SetTool(this, tool, main_window, nullptr), tool->GetName()});
       pref_panels_[tool] = tool->GetPreferencesPanel();
       int temp_x = x + button_width * (i % buttons_in_row);
       palette->AddChild(CreatePickToolButton(tool, render, button_width,

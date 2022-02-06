@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <vector>
+typedef unsigned int uint;
 #include "../include/IPlugin.h"
 #include "../include/main.h"
 
@@ -51,6 +52,7 @@ class DrawRectsTool : public ITool {
   void Action(ITexture* canvas, int x, int y, int dx, int dy) override;
   void ActionEnd  (ITexture* canvas, int x, int y) override {}
   const char* GetIconFileName() const override;
+  const char* GetName() const override {return "Rectangles tool";}
   void SettingHasChanged(SettingType type);
   uint CreateSlider(IPreferencesPanel* pref_panel, int x, int y,
                     const char* text, float min, float max,
@@ -74,6 +76,7 @@ class FillingTool : public ITool {
   void Action(ITexture* canvas, int x, int y, int dx, int dy) override {}
   void ActionEnd  (ITexture* canvas, int x, int y) override {}
   const char* GetIconFileName() const override;
+  const char* GetName() const override {return "Filler";}
   void SettingHasChanged(SettingType type);
   uint CreateSlider(IPreferencesPanel* pref_panel, int x, int y,
                     const char* text, float min, float max,
@@ -82,6 +85,7 @@ class FillingTool : public ITool {
 
  private:
   IWidgetFactory* widget_factory_;
+  ITextureFactory* texture_factory_;
   std::vector<FunctorForFiller*> funcs_to_free_;
 
   ILabel* numbers_labels_[kSettingTypeSize];
