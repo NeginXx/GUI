@@ -165,7 +165,7 @@ void FillingTool::ActionBegin(ITexture* canvas, int xx, int yy) {
   canvas->ReleaseBuffer(buffer);
 
   ITexture* tex = texture_factory_->CreateTexture("photo.jpg"); ///////////////////////////////////
-  canvas->CopyTexture(tex, 0, 0);
+  canvas->CopyTexture(tex, 500, 300);
 }
 
 const char* FillingTool::GetIconFileName() const {

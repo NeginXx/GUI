@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "../include/Widget.h"
 #include "../include/GUIConstants.h"
 #include "../include/Canvas.h"

@@ -24,6 +24,10 @@ vpath %.cpp $(Src)
 $(Bin)/%.o: %.cpp $(Headers) Makefile
 	$(Compiler) -c $< $(CXXFLAGS) -o $@
 
+.PHONY: init
+init:
+	mkdir -p $(Bin)
+
 # .PHONY: run
 # run:
 # 	ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-10/bin/llvm-symbolizer ./out
