@@ -1,5 +1,5 @@
 # Overview
-This is graphic user interface library to create your own app and painting app as an example
+This is a graphic user interface library to create your own app and painting app as an example
 ## GUI
 You can create an instance of already implemented widget, such as Icon, MainWindow, DragWidget, BasicButton and more. Or you can create your own class of widget, inheriting it from AbstractWidget, AbstractContainer or Container or any other already implemented widget
 ## Painting app
